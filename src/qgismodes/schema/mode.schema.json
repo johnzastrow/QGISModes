@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/johnzastrow/QGISModes/blob/main/src/qgismodes/schema/mode.schema.json",
+  "title": "QGIS Modes — mode file",
+  "description": "STARTER schema for a QGIS Modes mode file. Refine as the format stabilises; see docs/design-multi-mode-and-authoring.md (A.1, A.6). The 'providers' section is intentionally absent — provider policy is shared, not per-mode (design doc A.5).",
+  "type": "object",
+  "required": ["meta", "toolbars"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "description": "Self-describing metadata for the mode.",
+      "required": ["id", "name", "schema"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Stable slug; also the file name (<id>.json)."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable label shown in the mode picker."
+        },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "version": { "type": "string" },
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Config-format version, for migration."
+        },
+        "requires": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names of QGIS plugins this mode references (design doc Q3)."
+        }
+      }
+    },
+    "toolbars": {
+      "type": "object",
+      "description": "Simplified toolbars to create, keyed by unique object name.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["title", "area", "items"],
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string" },
+          "area": { "enum": ["top", "bottom", "left", "right"] },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/item" }
+          }
+        }
+      }
+    },
+    "algorithms": {
+      "type": "object",
+      "description": "Named processing-algorithm groups, rendered as dropdowns.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["items"],
+        "additionalProperties": false,
+        "properties": {
+          "icon": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "panels": {
+      "type": "object",
+      "description": "Panels to keep, valued '<state>:<area>'.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(fixed|hidden):(top|bottom|left|right)$"
+      }
+    },
+    "statusbar": {
+      "type": "object",
+      "description": "Status-bar widget object names; false hides the widget.",
+      "additionalProperties": { "type": "boolean" }
+    }
+  },
+  "definitions": {
+    "item": {
+      "description": "A toolbar item: a token string, or a nested array of tokens forming one dropdown group.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/definitions/item" }
+        }
+      ]
+    }
+  }
+}

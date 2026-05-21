@@ -1,0 +1,21 @@
+[general]
+name=QGIS Modes
+description=Switchable simplified QGIS interfaces ("modes") for task-focused work.
+about=QGIS Modes lets you define several simplified QGIS interfaces — "modes"
+    such as Data Editing, Analysis, Raster Processing, or Output Creation — and
+    switch between them at runtime. It builds on QGIS Light (by Serkan Girgin),
+    extending its single config-driven simplified interface into multiple named,
+    selectable configurations, with a planned visual tool for authoring them.
+    This release is an early skeleton; see the project documentation.
+version=0.0.1
+qgisMinimumVersion=3.22
+qgisMaximumVersion=4.99
+author=John Zastrow
+email=br8kwall@gmail.com
+icon=icons/qgis-green.png
+experimental=True
+tags=interface,simplification,education,citizen science,toolbar
+plugin_dependencies=QuickMapServices,Data Plotly
+homepage=https://github.com/johnzastrow/QGISModes
+repository=https://github.com/johnzastrow/QGISModes
+tracker=https://github.com/johnzastrow/QGISModes/issues
