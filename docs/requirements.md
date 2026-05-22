@@ -84,7 +84,7 @@ plugin with no server component.
 
 3. capture and restore the original layout
 
-4. select and switch modes at runtime · 
+4. select and switch modes at runtime 
 
 5. build the interface from a mode via token resolution · 
 
