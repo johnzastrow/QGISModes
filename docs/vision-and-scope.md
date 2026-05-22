@@ -124,6 +124,9 @@ cycle. *Needs (future):* a visual authoring tool (no JSON).
 Develops, packages, and releases the plugin. *Needs:* a config-driven design,
 clean code, and a package that passes repository QA.
 
+**P5 — Timmy, GIS Analyst.**
+Uses many tools in QGIS, but needs to focus on one type of work at time. Finds the cluttered UI with tons of toolbars and buttons distracting. *Needs:* configure modes to slim the interface down to focus controls on the task at hand, allow quickly switching between them as the work changes. For example, Raster analysis, Vector analysis, Vector editing, Attribute work, Data Management
+
 
 ## 8. Scope
 
