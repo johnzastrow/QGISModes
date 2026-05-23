@@ -185,6 +185,7 @@ Priorities: **M**ust · **S**hould · **C**ould · **W**on't (this release).
 | FR-SW-4 | M | The active mode shall be indicated in the mode picker. | The current mode is visibly marked. |
 | FR-SW-5 | M | When ≥ 2 modes are installed, a mode switcher shall be reachable from within the simplified interface. | A user in simplified mode can switch modes without exiting first. |
 | FR-SW-6 | S | A mode switch shall complete without flicker of the standard (un-simplified) interface. | The menu bar / standard toolbars do not momentarily reappear during a switch. |
+| FR-SW-7 | M | The system shall register each installed mode (and the global enter/exit action) with QGIS's keyboard-shortcut manager so users can bind keys in **Settings → Keyboard Shortcuts**. **No default bindings shall be set** (to avoid conflicts with users' existing shortcuts). | Each mode appears in *Settings → Keyboard Shortcuts* as a bindable action; once bound, the key immediately switches modes without using the mouse. |
 
 ### 3.5 Interface construction — token resolution (FR-UI)
 
@@ -199,6 +200,7 @@ Priorities: **M**ust · **S**hould · **C**ould · **W**on't (this release).
 | FR-UI-7 | M | On entering simplified mode, the system shall hide the menu bar and all standard toolbars and panels not required by the active mode. | Only the active mode's toolbars/panels are visible. |
 | FR-UI-8 | M | `apply_mode()` shall tear down only the toolbars QGIS Modes created, never `QAction`s borrowed from QGIS. | After repeated switching, borrowed QGIS actions remain valid and functional. |
 | FR-UI-9 | W | A mode file may declare a `menus` section that the system rebuilds as a simplified menu bar from tokens (same mechanism as toolbars). | **Deferred to v1.1** (the power-user release). v1.0 hides the menu bar entirely (FR-UI-7); menu actions remain reachable through toolbar tokens such as `mProjectMenu:mActionShowLayoutManager`. |
+| FR-UI-10 | C | The system may provide a **quick-run** command-search box that finds and runs any QGIS action by name, regardless of the active mode (P5's "escape hatch"). | **v1.1+ target.** Search returns matching actions across all toolbars/menus; invoking a result runs it as if the user had clicked the original. |
 
 ### 3.6 Safety and guard rails (FR-GR)
 
@@ -252,50 +254,285 @@ Priorities: **M**ust · **S**hould · **C**ould · **W**on't (this release).
 
 ## 4. Use cases
 
-Each use case lists its exercised requirements.
+Each use case is a scenario the design must satisfy. **Pass criteria** are
+concrete, testable checks — the UC passes when all bullets verify true. The
+UCs collectively form the §8 manual verification checklist.
 
-**UC-1 — First-time use.**
-*Actor:* P1/P2. *Pre:* plugin installed, never enabled.
-*Flow:* user invokes "enter simplified mode" → original layout captured → the
-default mode is applied → standard UI hidden.
-*Post:* a simplified interface with an exit control is shown.
-*Covers:* FR-LC-1, FR-LC-2, FR-UI-1, FR-UI-7, FR-GR-1, FR-MS-1.
+### UC-1 — First-time use
 
-**UC-2 — Switch modes mid-session.**
-*Actor:* P2. *Pre:* in simplified mode "Analysis"; ≥ 2 modes installed.
-*Flow:* user opens the mode switcher → picks "Raster Processing" → interface is
-torn down and rebuilt in place.
-*Post:* "Raster Processing" is active; original layout untouched; QGIS not
-restarted.
-*Covers:* FR-SW-1, FR-SW-2, FR-SW-5, FR-UI-8, FR-LC-7, FR-PP-2.
+*Actor:* P1 / P2.
+*Preconditions:* plugin installed, never enabled.
+*Trigger:* user invokes *Enter QGIS Modes*.
+*Main flow:*
+1. The system captures the original toolbar and panel layout.
+2. The menu bar and standard toolbars/panels are hidden; context-menu policy is set to `NoContextMenu`.
+3. The default mode is applied.
+4. The simplified interface appears with an exit control and (if ≥ 2 modes installed) a mode switcher.
 
-**UC-3 — Exit to standard QGIS.**
-*Actor:* P1/P2. *Pre:* in simplified mode.
-*Flow:* user invokes the exit control → mode UI removed → original layout
-restored.
-*Post:* the standard QGIS interface is exactly as before simplification.
-*Covers:* FR-LC-3, FR-LC-4, FR-GR-1.
+*Postconditions:* simplified mode active; default mode is the active mode.
 
-**UC-4 — Author a mode by editing JSON** (MVP authoring path).
-*Actor:* P3. *Pre:* plugin installed.
-*Flow:* author copies an existing mode file in the user modes directory →
-edits it → reloads the plugin → the new mode appears in the picker.
-*Post:* the new mode is selectable.
-*Covers:* FR-MS-2, FR-MF-1..6, FR-SW-1.
+*Pass criteria:*
+- ✓ Simplified interface matches the default mode's `toolbars` / `panels` / `statusbar`.
+- ✓ Original layout persisted to `QgsSettings` under `qgismodes/`.
+- ✓ Exit control visible and functional.
+- ✓ Right-click in QGIS chrome shows no context menu.
 
-**UC-5 — Recover from a broken mode.**
-*Actor:* P2. *Pre:* the active mode file is malformed.
-*Flow:* startup → active mode fails validation → system logs it, falls back to a
-good mode (or standard QGIS), and informs the user.
-*Post:* the user has a usable interface and is not trapped.
-*Covers:* FR-MF-5, FR-GR-4, FR-GR-5.
+*Covers:* FR-LC-1, FR-LC-2, FR-LC-9, FR-UI-1, FR-UI-7, FR-GR-1, FR-MS-1.
 
-**UC-6 — Restart while simplified.**
-*Actor:* P1/P2. *Pre:* simplified mode active, QGIS closed and reopened.
-*Flow:* QGIS starts → plugin sees `qgismodes/enabled` → defers build to
-`initializationCompleted` → reapplies the persisted mode.
-*Post:* the same mode is active after restart.
+### UC-2 — Switch modes mid-session
+
+*Actor:* P2 / P5.
+*Preconditions:* simplified mode active; ≥ 2 modes installed; current mode = "Analysis".
+*Trigger:* user picks a different mode from the mode switcher (or its keyboard shortcut — see UC-12).
+*Main flow:*
+1. The system tears down the current mode's plugin-created toolbars.
+2. The new mode is loaded and validated.
+3. The new mode's `toolbars` / `panels` / `statusbar` are applied.
+4. `qgismodes/mode` is updated to the new id.
+
+*Alternate flows:* new mode fails to load → UC-5 fallback.
+
+*Postconditions:* new mode active; captured original layout untouched; provider policy unchanged; QGIS not restarted.
+
+*Pass criteria:*
+- ✓ The previous mode's plugin-created toolbars are removed.
+- ✓ The new mode's interface is in place.
+- ✓ `qgismodes/mode` reflects the new mode id.
+- ✓ The captured original layout in `QgsSettings` is unchanged.
+- ✓ Switch latency < 1 s (NFR-PRF-1).
+
+*Covers:* FR-SW-1, FR-SW-2, FR-SW-3, FR-SW-5, FR-UI-8, FR-LC-7, FR-PP-2.
+
+### UC-3 — Exit to standard QGIS
+
+*Actor:* P1 / P2 / P5.
+*Preconditions:* simplified mode active.
+*Trigger:* user invokes the runtime-injected exit control.
+*Main flow:*
+1. The system tears down all plugin-created toolbars.
+2. The standard menu bar, toolbars, and panels are restored from the captured layout.
+3. The context-menu policy is restored.
+4. `qgismodes/enabled` is cleared.
+
+*Postconditions:* the standard QGIS interface is exactly as before simplification.
+
+*Pass criteria:*
+- ✓ Every toolbar/panel visible before simplification is visible again, in the same area.
+- ✓ The menu bar is visible.
+- ✓ Right-click works again in QGIS chrome.
+- ✓ No QGIS Modes-created widgets remain in the main window.
+
+*Covers:* FR-LC-3, FR-LC-4, FR-LC-9, FR-GR-1.
+
+### UC-4 — Author a mode by editing JSON
+
+*Actor:* P3 (also P5, for their own modes).
+*Preconditions:* plugin installed.
+*Trigger:* author wants to create or change a mode.
+*Main flow:*
+1. Author copies an existing `.json` from `<plugin>/modes/` or `<profile>/qgismodes/modes/`.
+2. Author edits `meta.id`, `meta.name`, and the body.
+3. Author reloads the plugin (Plugin Reloader) or restarts QGIS.
+4. The new/changed mode appears in the picker.
+
+*Alternate flows:* file fails schema validation → mode skipped, diagnostic logged (UC-5 partial).
+
+*Postconditions:* the new/changed mode is selectable and usable.
+
+*Pass criteria:*
+- ✓ A schema-valid file becomes a selectable mode.
+- ✓ A schema-invalid file is skipped with a diagnostic in the *QGIS Modes* log tab.
+- ✓ Other modes still load correctly when one mode is broken.
+
+*Covers:* FR-MS-2, FR-MF-1, FR-MF-2, FR-MF-3, FR-MF-4, FR-MF-5, FR-MF-6, FR-SW-1.
+
+### UC-5 — Recover from a broken mode
+
+*Actor:* P2 / P5.
+*Preconditions:* the active mode file is malformed (bad JSON, schema violation, or `meta.schema` > supported).
+*Trigger:* QGIS starts (UC-6) or the user picks the broken mode.
+*Main flow:*
+1. Validation fails for the file.
+2. The system logs the failure to the *QGIS Modes* tab and pushes a message-bar warning naming the bad file.
+3. The system falls back to a known-good mode (e.g. `default`) or to the standard interface.
+
+*Postconditions:* the user has a usable interface; they are not trapped.
+
+*Pass criteria:*
+- ✓ The broken file does not raise an unhandled exception.
+- ✓ A diagnostic naming the bad file appears in the log.
+- ✓ A user-readable warning appears in the message bar.
+- ✓ A usable interface (good mode or standard QGIS) is shown.
+
+*Covers:* FR-MF-5, FR-MF-6, FR-GR-4, FR-GR-5.
+
+### UC-6 — Restart while simplified
+
+*Actor:* P1 / P2 / P5.
+*Preconditions:* simplified mode active when QGIS is closed.
+*Trigger:* QGIS is reopened.
+*Main flow:*
+1. The plugin sees `qgismodes/enabled` is true.
+2. The plugin defers building until `mainwindow.initializationCompleted`.
+3. The plugin reapplies the persisted mode id.
+
+*Postconditions:* the same mode is active after restart; tokens from late-loading plugins resolve.
+
+*Pass criteria:*
+- ✓ The active mode after restart equals the active mode before close.
+- ✓ Tokens referencing QuickMapServices and DataPlotly resolve successfully.
+- ✓ Startup adds < 200 ms when QGIS Modes is *not* active (NFR-PRF-2).
+
 *Covers:* FR-LC-5, FR-LC-6, FR-SW-3.
+
+### UC-7 — Author exports a mode and shares it
+
+*Actor:* P3 (sender).
+*Preconditions:* P3 has authored one or more modes.
+*Trigger:* P3 invokes *Export mode…*.
+*Main flow:*
+1. P3 selects one or more modes.
+2. The export dialog opens at the most-recently-used location in the session.
+3. P3 chooses a folder and confirms.
+4. The system writes one `<meta.id>.json` per selected mode.
+5. P3 attaches the file(s) to email, drops on a shared drive, etc.
+
+*Postconditions:* schema-valid `.json` file(s) exist at the chosen location.
+
+*Pass criteria:*
+- ✓ With N modes selected, N files are written, each named `<meta.id>.json`.
+- ✓ Re-importing an exported file (UC-8) reproduces the mode exactly.
+- ✓ Subsequent export reopens at the last-used location.
+
+*Covers:* FR-MS-7b.
+
+### UC-8 — Receiver imports a single mode
+
+*Actor:* P2 / P5 (receiver).
+*Preconditions:* receiver has a `.json` mode file from a sender.
+*Trigger:* receiver invokes *Import mode…*.
+*Main flow:*
+1. File picker opens; receiver selects the `.json`.
+2. The system validates the file against `mode.schema.json`.
+3. If `meta.requires` is present, the plugin-requires preview is shown for confirmation.
+4. If a mode with the same `meta.id` already exists, the conflict dialog (UC-10) is shown.
+5. The mode file is copied to the user modes dir as `<meta.id>.json`.
+6. The new mode appears in the picker (after reload, if required).
+
+*Alternate flows:*
+- File is malformed → skipped with diagnostic; receiver is informed.
+- Preview cancelled → import aborted; nothing written.
+
+*Postconditions:* the new mode is selectable and usable.
+
+*Pass criteria:*
+- ✓ A schema-valid file becomes a selectable mode.
+- ✓ A schema-invalid file is skipped with a diagnostic; no exception.
+- ✓ Preview confirmation step happens when `meta.requires` is present.
+- ✓ Stored filename is `<meta.id>.json` regardless of the incoming filename.
+
+*Covers:* FR-MS-7a, FR-MS-9, FR-MS-10.
+
+### UC-9 — Receiver imports many modes from a folder
+
+*Actor:* P2 / P5.
+*Preconditions:* receiver has a folder containing several mode `.json` files.
+*Trigger:* receiver invokes *Import mode… → from folder* (or multi-select in the picker).
+*Main flow:*
+1. Receiver picks a directory.
+2. The system enumerates all `.json` files and validates each.
+3. For each valid file: plugin-requires preview, conflict resolution, install (UC-8 sub-flow).
+4. For each invalid file: skipped with diagnostic.
+5. A summary is shown (e.g. *"N modes imported, M skipped"*).
+
+*Postconditions:* every valid mode is installed; receiver knows what was skipped and why.
+
+*Pass criteria:*
+- ✓ Every valid mode in the folder is imported.
+- ✓ Every invalid file is named in the log with the reason.
+- ✓ Conflict choices for one mode do not affect others.
+- ✓ Summary counts match (`imported + skipped = total found`).
+
+*Covers:* FR-MS-7a, FR-MS-9, FR-MS-10.
+
+### UC-10 — Resolve a mode-id conflict on import
+
+*Actor:* P2 / P5.
+*Preconditions:* during UC-8 or UC-9, an incoming mode's `meta.id` matches an existing user mode.
+*Trigger:* the conflict dialog appears for that mode.
+*Main flow:* user chooses one of:
+- **Overwrite** — existing user mode is replaced; bundled mode (if any) is shadowed unchanged.
+- **Keep both** — incoming mode is renamed (e.g. `<id>-1`, `<id>-2`); existing mode is untouched.
+- **Cancel** — nothing is written for this mode.
+
+*Postconditions:* the chosen outcome is applied for the conflicting mode; other modes in the batch are unaffected.
+
+*Pass criteria:*
+- ✓ Each choice produces the documented outcome.
+- ✓ A choice for one mode is honoured even when other choices in the same batch differ.
+- ✓ *Cancel* leaves the user modes dir unchanged for that mode.
+
+*Covers:* FR-MS-9.
+
+### UC-11 — Educator distributes modes to a class
+
+*Actor:* P2 (educator); P1 (students).
+*Preconditions:* P2 has prepared one or more modes for the activity.
+*Trigger:* P2 needs every student's QGIS to have the same modes.
+*Main flow* — any combination of three supported mechanics:
+- **(A) Email.** P2 exports (UC-7) and emails `.json` files; students import (UC-8 / UC-9).
+- **(B) Shared drive.** P2 places `.json` files on a shared network/cloud folder; students *Import from folder* pointing at it (UC-9).
+- **(C) Pre-install.** P2 (or IT) copies `.json` files directly into each laptop's `<profile>/qgismodes/modes/` before class. Students do nothing.
+
+*Postconditions:* every student's QGIS has the prepared modes available.
+
+*Pass criteria:*
+- ✓ All three mechanics produce identical mode files on the receiving machine (same `meta.id`, same body).
+- ✓ Mechanic (C) requires no student action — modes appear on next QGIS start (UC-1 / UC-6).
+
+*Covers:* FR-MS-2, FR-MS-7a, FR-MS-7b.
+
+### UC-12 — Power user's day with keyboard shortcuts
+
+*Actor:* P5.
+*Preconditions:* simplified mode active; multiple task-focused modes installed; P5 has bound keyboard shortcuts in *Settings → Keyboard Shortcuts*.
+*Trigger:* P5 presses a bound shortcut to switch mode (or, v1.1+, to invoke quick-run).
+*Main flow:*
+1. P5 works in mode A; the shortcut switches to mode B (UC-2 mechanics).
+2. P5 needs a tool not in mode B. One of:
+   - **(a)** Switch to mode C that has it (UC-2).
+   - **(b)** One-click exit → use tool in standard QGIS → re-enter (UC-3 + UC-1, mode id preserved by `qgismodes/mode`).
+   - **(c)** (v1.1+) Invoke quick-run (FR-UI-10) to run the action without switching.
+   - **(d)** Decide the current mode is too narrow and edit/author a richer one (UC-4).
+3. P5 continues across the day; ends in whichever mode they last used.
+
+*Postconditions:* P5 accomplished a multi-task day without restarting QGIS or losing focus.
+
+*Pass criteria:*
+- ✓ Each bound shortcut switches modes without using the mouse.
+- ✓ Switch latency < 1 s (NFR-PRF-1).
+- ✓ The exit → re-enter sequence preserves the previously active mode id.
+- ✓ No mode-switch attempt triggers an unhandled exception.
+
+*Covers:* FR-SW-1, FR-SW-2, FR-SW-7, FR-LC-1, FR-LC-3, FR-LC-5; *post-MVP:* FR-UI-10.
+
+### UC-13 — Backup and restore user modes
+
+*Actor:* P3 / P5 (user keeping their own modes safe).
+*Preconditions:* user has authored or accumulated user modes they want to preserve.
+*Trigger:* user wants a backup (machine migration, OS reinstall, risky change).
+*Main flow:*
+1. User invokes *Export* and selects all their user modes.
+2. The system writes one `<meta.id>.json` per mode to a chosen location (UC-7).
+3. Later (perhaps on another machine), user invokes *Import from folder* pointing at the backup (UC-9).
+
+*Postconditions:* the user's modes are reproducible on any machine.
+
+*Pass criteria:*
+- ✓ Exporting all user modes and re-importing on a clean install yields an identical set of selectable modes.
+- ✓ `meta.id`, `meta.name`, and body match before and after the round trip.
+
+*Covers:* FR-MS-7a, FR-MS-7b.
 
 
 ## 5. Non-functional requirements
