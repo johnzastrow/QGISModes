@@ -5,7 +5,7 @@
 | **Document** | Software Requirements Specification |
 | **Project** | QGIS Modes |
 | **Version** | 0.1 — DRAFT for review |
-| **Date** | 2026-05-21 |
+| **Date** | 2026-05-23 |
 | **Status** | Stage 2 of the requirements & design process; awaiting review. |
 | **Baseline target** | Release 1.0 (MVP — Phases 1 & 2) |
 | **Related** | [`vision-and-scope.md`](vision-and-scope.md), [`design-multi-mode-and-authoring.md`](design-multi-mode-and-authoring.md), [`customizing-qgis-light.md`](customizing-qgis-light.md) |
@@ -76,27 +76,21 @@ plugin with no server component.
 
 ### 2.2 Product functions (summary)
 
-1. Load and validate mode files 
-
-   1.1 import and export mode files from QGIS Light, User Profiles, and other users Mode files
-
-2. enter and exit simplified mode
-
-3. capture and restore the original layout
-
-4. select and switch modes at runtime 
-
-5. build the interface from a mode via token resolution · 
-
-6. keep the user safe (always exit, always switch, fail soft) · 
-
-7. persist state across sessions.
+1. Load and validate mode files.
+2. **Import and export mode files** (single or multiple) between users, from QGIS Light configs, and across QGIS user profiles. See FR-MS-7a/7b/8/9/10.
+3. Enter and exit simplified mode.
+4. Capture and restore the original layout.
+5. Select and switch modes at runtime.
+6. Build the interface from a mode via token resolution.
+7. Keep the user safe (always exit, always switch, fail soft).
+8. Persist state across sessions.
 
 ### 2.3 User classes
 
 Per [`vision-and-scope.md`](vision-and-scope.md) §7: **P1** end user, **P2**
-educator, **P3** mode author, **P4** maintainer. P1 and P2 are the primary
-runtime users for the MVP; P3 authors modes by editing JSON in the MVP.
+educator, **P3** mode author, **P4** maintainer, **P5** GIS analyst (power
+user). P1, P2, and P5 are the primary runtime users for the MVP; P3 and P5
+author modes by editing JSON in the MVP.
 
 
 
@@ -161,8 +155,11 @@ Priorities: **M**ust · **S**hould · **C**ould · **W**on't (this release).
 | FR-MS-4 | M | User modes shall be unaffected by plugin upgrade/reinstall. | After reinstalling the plugin, user modes still exist and load. |
 | FR-MS-5 | S | On first run with an empty user modes directory, the system shall seed it by copying the bundled modes. | First launch creates editable copies; **DECISION D5**. |
 | FR-MS-6 | C | The system shall import an existing QGIS Light `config.json` as a `default` mode. | Legacy migration; **DECISION D3**. |
-
-*Add: FR-MS-7. Provide function to share and backup/restore mode files (export/import capability). FR-MS-8. Gracefully adapt early schema versions of mode files to current standard*
+| FR-MS-7a | M | The system shall provide an **Import mode** command that accepts one or more mode files — or every valid `.json` file in a chosen directory — validates each against the schema, and installs valid modes into the user modes directory under the filename `<meta.id>.json`. | A user can import a single file, multiple selected files, or all valid `.json` in a chosen folder; invalid files are skipped with a logged diagnostic; the stored filename always equals `<meta.id>.json`. |
+| FR-MS-7b | M | The system shall provide an **Export mode** command that writes one or more selected modes as separate JSON files (one mode per file, named `<meta.id>.json`) to a user-chosen location. | With N modes selected, N files are written; the export dialog defaults to the most recently used location in the session. |
+| FR-MS-8 | C | The system shall gracefully adapt earlier mode-file schema versions to the current schema on load and import. | Trivially satisfied while only schema v1 exists; revisit when schema v2 lands. |
+| FR-MS-9 | M | On import, if a mode with the same `meta.id` already exists, the system shall present the user a choice of **Overwrite**, **Keep both** (rename the incoming mode), or **Cancel** — per conflict. | Each collision triggers a dialog; the user's choice for one mode does not affect other modes in the same import batch. |
+| FR-MS-10 | M | Before installing an imported mode, the system shall display a preview listing any QGIS plugins it requires (per `meta.requires`) and request user confirmation. | A preview dialog appears before write; the user may confirm or cancel; a mode without `meta.requires` shows no plugin list but the confirmation step still runs. |
 
 ### 3.3 Lifecycle — enter / exit simplified mode (FR-LC)
 
@@ -239,6 +236,17 @@ Priorities: **M**ust · **S**hould · **C**ould · **W**on't (this release).
 > in Release 1.0. Their full design is in
 > [`design-multi-mode-and-authoring.md`](design-multi-mode-and-authoring.md)
 > Part B.
+
+### 3.10 Capture features (FR-CP) — post-MVP
+
+| ID | Pri | Requirement |
+| :-- | :-- | :-- |
+| FR-CP-1 | W | The system may provide a command to **capture the current QGIS profile's UI** as a starter mode that the author can then refine. |
+| FR-CP-2 | W | The system may provide a command to **capture the UI of another QGIS profile** on the same machine as a starter mode. |
+
+> FR-CP-* are tracked for post-MVP; they share mechanism with the future Visual
+> Mode Designer's "Pick from QGIS" capture mode. They are the formal answer to
+> the L5(a) reading of "from User Profiles" in §2.2 item 2.
 
 ## 4. Use cases
 
@@ -367,7 +375,7 @@ good mode (or standard QGIS), and informs the user.
 
 ## 7. Out of scope for Release 1.0
 
-The visual Mode Designer and all of Phase 4 (FR-DS-*); mode import/export UI;
+The visual Mode Designer (FR-DS-*) and the capture features (FR-CP-*);
 internationalisation; rebuilding a trimmed menu bar; managing PIP dependencies;
 an automated test suite (a manual verification checklist is used instead — see
 §8). Permanent exclusions are in [`vision-and-scope.md`](vision-and-scope.md) §8.3.
@@ -405,7 +413,7 @@ cases and the acceptance criteria in §3 and §5.
 | :-- | :-- | :-- | :-- |
 | D1 | Minimum QGIS version | 3.4 (dual Qt 5/6) — §2.4 | [X] |
 | D2 | Provider trimming in MVP | Yes, *Should* — FR-PP-1. Explain in more detail | ☐ |
-| D3 | Legacy `config.json` migration | *Could* — FR-MS-6 - see additional requirements | [X] |
+| D3 | Legacy `config.json` migration | *Could* — FR-MS-6 (QGIS Light legacy). Broader "import / export" need is now formalised as FR-MS-7a/7b/8/9/10 — see §3.2. | [X] |
 | D4 | Number of bundled example modes | Three (default + two) — Goal G2. Need | ☐ |
 | D5 | Seed user modes dir on first run | Yes, *Should* — FR-MS-5 | [X] |
 

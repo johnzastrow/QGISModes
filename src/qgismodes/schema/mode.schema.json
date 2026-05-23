@@ -25,6 +25,10 @@
         "description": { "type": "string" },
         "icon": { "type": "string" },
         "version": { "type": "string" },
+        "author": {
+          "type": "string",
+          "description": "Optional. Useful for shared modes — surfaces who created the mode."
+        },
         "schema": {
           "type": "integer",
           "minimum": 1,
