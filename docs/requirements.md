@@ -138,7 +138,7 @@ Priorities: **M**ust · **S**hould · **C**ould · **W**on't (this release).
 | :-- | :-- | :-- | :-- |
 | FR-MF-1 | M | Each mode shall be defined by a single JSON mode file. | A well-formed mode file produces exactly one selectable mode. |
 | FR-MF-2 | M | A mode file shall contain a `meta` block with at least `id`, `name`, and integer `schema`. | A file missing any of the three is rejected (FR-MF-5). |
-| FR-MF-3 | M | A mode file shall support the sections `menus`,`toolbars`, `algorithms`, `panels`, `statusbar, docks, browser`.UPDATE: all the customizable UI elements | Each section, when present, is applied per §3.4–§3.5. |
+| FR-MF-3 | M | A mode file shall support the sections `toolbars`, `algorithms`, `panels`, and `statusbar`. Per-mode menu-bar rebuild is deferred to v1.1+ (FR-UI-9); provider policy is global, not per-mode (FR-MF-7); the exit control and mode switcher are runtime-injected (FR-GR-3); the term "panels" covers what is sometimes called "docks" — they are the same Qt object. | Each present section is applied per §3.4–§3.5; no other top-level section (e.g. `menus`, `docks`, `browser`) is recognised by the v1.0 schema. |
 | FR-MF-4 | M | The system shall validate every mode file against the published JSON Schema on load. | A file violating the schema is detected before it is applied. |
 | FR-MF-5 | M | An invalid or unparseable mode file shall be skipped with a logged diagnostic; it shall not abort plugin load or startup. | With one corrupt file present, all valid modes still load; a warning names the bad file. |
 | FR-MF-6 | M | The mode-file format shall carry an integer `schema` version. | A file whose `schema` exceeds the supported version is skipped with an explanatory diagnostic. |
@@ -173,6 +173,7 @@ Priorities: **M**ust · **S**hould · **C**ould · **W**on't (this release).
 | FR-LC-6 | M | When simplified mode is active at startup, building the interface shall be deferred until QGIS initialisation completes. | Tokens referencing other plugins' toolbars resolve correctly at startup. |
 | FR-LC-7 | M | A mode switch shall **not** re-capture or overwrite the stored original layout. | After A→B→exit, the UI matches the state captured before A. |
 | FR-LC-8 | M | On plugin `unload()`, the system shall remove all UI it added and, if simplified mode is active, restore the standard interface. | After disabling the plugin, no QGIS Modes UI remains and the standard UI is intact. |
+| FR-LC-9 | M | In simplified mode, the main window's context-menu policy shall be set to `NoContextMenu` so users cannot re-expose hidden UI via right-click; on exit, the previous policy shall be restored. | Right-click in QGIS chrome shows no context menu while a mode is active; normal right-click behaviour returns after exit. A per-mode opt-in (`meta.allow_context_menu`) is a v1.1+ option. |
 
 ### 3.4 Mode selection and switching (FR-SW)
 
@@ -197,6 +198,7 @@ Priorities: **M**ust · **S**hould · **C**ould · **W**on't (this release).
 | FR-UI-6 | M | A token that fails to resolve shall be skipped with a logged diagnostic; interface construction shall continue. | A mode with one bad token still builds; the bad token is named in the log. |
 | FR-UI-7 | M | On entering simplified mode, the system shall hide the menu bar and all standard toolbars and panels not required by the active mode. | Only the active mode's toolbars/panels are visible. |
 | FR-UI-8 | M | `apply_mode()` shall tear down only the toolbars QGIS Modes created, never `QAction`s borrowed from QGIS. | After repeated switching, borrowed QGIS actions remain valid and functional. |
+| FR-UI-9 | W | A mode file may declare a `menus` section that the system rebuilds as a simplified menu bar from tokens (same mechanism as toolbars). | **Deferred to v1.1** (the power-user release). v1.0 hides the menu bar entirely (FR-UI-7); menu actions remain reachable through toolbar tokens such as `mProjectMenu:mActionShowLayoutManager`. |
 
 ### 3.6 Safety and guard rails (FR-GR)
 
@@ -375,10 +377,11 @@ good mode (or standard QGIS), and informs the user.
 
 ## 7. Out of scope for Release 1.0
 
-The visual Mode Designer (FR-DS-*) and the capture features (FR-CP-*);
-internationalisation; rebuilding a trimmed menu bar; managing PIP dependencies;
-an automated test suite (a manual verification checklist is used instead — see
-§8). Permanent exclusions are in [`vision-and-scope.md`](vision-and-scope.md) §8.3.
+The visual Mode Designer (FR-DS-*), the capture features (FR-CP-*), and the
+menu-bar rebuild (FR-UI-9, planned for v1.1); internationalisation; managing PIP
+dependencies; an automated test suite (a manual verification checklist is used
+instead — see §8). Permanent exclusions are in
+[`vision-and-scope.md`](vision-and-scope.md) §8.3.
 
 
 ## 8. Verification approach and Definition of Done

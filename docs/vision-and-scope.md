@@ -174,11 +174,15 @@ Designed for, but **not built in the MVP**:
 | Release | Content | Gate |
 | :-- | :-- | :-- |
 | **0.x (current)** | Design + skeleton. | — |
-| **1.0 (MVP)** | Phases 1 & 2 — working multi-mode plugin. | Goals G1–G5 met; published, non-experimental, on plugins.qgis.org. |
-| **1.x** | Phase 3 — visual Mode Designer. | Authoring without JSON. |
-| **1.x+** | Phase 4 — capture, live preview, polish. | — |
+| **1.0 (MVP)** | Phases 1 & 2 — working multi-mode plugin (toolbars, panels, algorithms, status bar, import/export). | Goals G1–G5 met; published, non-experimental, on plugins.qgis.org. |
+| **1.1** | Power-user features — per-mode **menu-bar rebuild** (FR-UI-9), per-mode context-menu opt-in. | Power users (P5) can replace the standard menu bar with a mode-defined one; no need to keep the entire QGIS menu bar hidden. |
+| **1.x** | Phase 3 — visual Mode Designer (FR-DS-*). | Authoring without JSON. |
+| **1.x+** | Phase 4 — capture (FR-CP-*), live preview, polish. | — |
 
-Each release is independently shippable. The phased roadmap is detailed in
+**1.0 is deliberately short-lived.** It establishes the engine and a publishable
+baseline; 1.1 follows quickly with the menu-bar rebuild and related power-user
+controls — the features P5 (GIS analyst) needs. Each release is independently
+shippable. The phased roadmap is detailed in
 [`design-multi-mode-and-authoring.md`](design-multi-mode-and-authoring.md).
 
 
