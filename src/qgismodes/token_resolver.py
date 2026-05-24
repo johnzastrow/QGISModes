@@ -89,7 +89,7 @@ class TokenResolver:
         if token == self.DISABLE_TOKEN:
             action = QAction(self.mainwindow)
             action.setObjectName(self.DISABLE_TOKEN)
-            action.setIcon(QIcon(os.path.join(self.plugin_dir, "icons", "qgis.svg")))
+            action.setIcon(QIcon(os.path.join(self.plugin_dir, "icons", "qgismodes.svg")))
             action.setText("Disable QGIS Modes")
             if self.disable_callback:
                 action.triggered.connect(

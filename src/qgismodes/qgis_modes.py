@@ -316,7 +316,7 @@ class QGISModesPlugin:
 
         action = QAction(self.mainwindow)
         action.setObjectName("mActionToggleQGISModes")
-        action.setIcon(QIcon(os.path.join(self.plugin_dir, "icons/qgis-green.svg")))
+        action.setIcon(QIcon(os.path.join(self.plugin_dir, "icons/qgismodes.svg")))
         action.setText("QGIS Modes")
         action.triggered.connect(self._on_toggle)
 
