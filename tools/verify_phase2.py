@@ -73,7 +73,10 @@ else:
             if not d.isHidden() and d.objectName()
         ]
         print(f"menu_bar visible       -> {mw.menuBar().isVisible()}")
-        print(f"context_menu_policy    -> {int(mw.contextMenuPolicy())}")
+        # PyQt6 enum members reject int(); their integer lives on .value.
+        policy = mw.contextMenuPolicy()
+        policy_val = policy.value if hasattr(policy, "value") else int(policy)
+        print(f"context_menu_policy    -> {policy_val}")
         print(f"visible toolbars ({len(visible_toolbars)}): {visible_toolbars}")
         print(f"visible panels   ({len(visible_panels)}): {visible_panels}")
 

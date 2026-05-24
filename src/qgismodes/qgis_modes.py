@@ -12,14 +12,19 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. See the LICENSE file for details.
 
 ==============================================================================
-STATUS: Phase 2 done — lifecycle (enter / exit / switch) is live.
+STATUS: Phase 3a done — ShortcutManager registers per-mode + toggle actions.
 
 Implementation phases (per docs/design-specification.md §3):
-  Phase 1 (done) — StateStore, ModeLoader, ModeRegistry, TokenResolver.
-  Phase 2 (done) — ModeApplier + LifecycleController. Toggle button now
-                   actually enters / exits simplified mode; the synthetic
-                   mActionDisableQGISModes token is wired to disable().
-  Phase 3        — UIWidgets, ShortcutManager, ImportExportService (MVP).
+  Phase 1  (done) — StateStore, ModeLoader, ModeRegistry, TokenResolver.
+  Phase 2  (done) — ModeApplier + LifecycleController. Toggle button now
+                    actually enters / exits simplified mode; the synthetic
+                    mActionDisableQGISModes token is wired to disable().
+  Phase 3a (done) — ShortcutManager. Per-mode + toggle QActions registered
+                    with QgsGui.shortcutsManager(); users bind keys in
+                    Settings → Keyboard Shortcuts.
+  Phase 3b        — UIWidgets (ToggleSplitButton, InlineModeSwitcher,
+                    ImportExportMenu, ExitControl, dialogs).
+  Phase 3c        — ImportExportService.
   Post-MVP       — Designer (FR-DS-*), capture (FR-CP-*), menus (FR-UI-9),
                    quick-run (FR-UI-10), provider trimming (FR-PP-*).
 
@@ -27,7 +32,7 @@ Public API on the plugin instance:
 
     qm = qgis.utils.plugins['qgismodes']
     qm.state_store, qm.loader, qm.registry, qm.token_resolver,
-    qm.applier, qm.lifecycle                                # components
+    qm.applier, qm.lifecycle, qm.shortcuts                  # components
     qm.enable(id) / qm.disable() / qm.apply_mode(id) /
     qm.switch_mode(id) / qm.available_modes() / qm.load_mode(id)
                                                             # convenience wrappers
@@ -53,6 +58,7 @@ from .mode_registry import ModeRegistry
 from .token_resolver import TokenResolver
 from .mode_applier import ModeApplier
 from .lifecycle_controller import LifecycleController
+from .shortcut_manager import ShortcutManager
 
 
 class QGISModesPlugin:
@@ -120,6 +126,15 @@ class QGISModesPlugin:
         )
         # Wire TokenResolver's synthetic exit action to lifecycle.disable.
         self.token_resolver.disable_callback = self.lifecycle.disable
+
+        # --- Phase 3a component (design-specification.md §3.8) ---
+        self.shortcuts = ShortcutManager(
+            mainwindow=self.mainwindow,
+            registry=self.registry,
+            toggle_callback=self._on_toggle,
+            switch_callback=self.lifecycle.switch_mode,
+            logger=self.log,
+        )
 
     # ------------------------------------------------------------ diagnostics
 
@@ -226,6 +241,9 @@ class QGISModesPlugin:
         self.iface.fileToolBar().addAction(action)
         self.iface.viewMenu().addAction(action)
 
+        # Register the toggle + per-mode switch shortcuts (FR-SW-7).
+        self.shortcuts.refresh()
+
         # FR-LC-6: defer re-entry so tokens referencing other plugins' toolbars
         # resolve correctly after those plugins have loaded.
         if self.state_store.enabled():
@@ -264,6 +282,11 @@ class QGISModesPlugin:
             self.lifecycle.teardown_for_unload()
         except Exception as e:  # noqa: BLE001
             self.log(f"Error during lifecycle teardown: {e}", "warning")
+
+        try:
+            self.shortcuts.unregister_all()
+        except Exception as e:  # noqa: BLE001
+            self.log(f"Error during shortcut teardown: {e}", "warning")
 
         action = self.mainwindow.findChild(QAction, "mActionToggleQGISModes")
         if action:
