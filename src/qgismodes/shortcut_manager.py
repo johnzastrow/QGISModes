@@ -17,6 +17,11 @@ Public API:
                             Called from ``initGui()`` and after every batch
                             ``ImportExportService`` operation.
   * ``unregister_all()``  — strip everything; called from ``unload()``.
+  * ``toggle_action``     — the ``qgismodes_toggle`` QAction (used by
+                            UIWidgets as the ToggleSplitButton's default
+                            action so both the keystroke and the toolbar
+                            button drive the same QAction).
+  * ``switch_action(id)`` — the per-mode QAction, or ``None`` if unknown.
 
 Realises FR-SW-7.
 """
@@ -129,3 +134,14 @@ class ShortcutManager:
         if self._toggle_action is not None:
             self._unregister_and_delete(self._toggle_action)
             self._toggle_action = None
+
+    # ------------------------------------------------------------------ accessors
+
+    @property
+    def toggle_action(self):
+        """The ``qgismodes_toggle`` QAction (after ``refresh()`` has run)."""
+        return self._toggle_action
+
+    def switch_action(self, mode_id: str):
+        """The ``qgismodes_switch_<mode_id>`` QAction, or ``None``."""
+        return self._switch_actions.get(mode_id)

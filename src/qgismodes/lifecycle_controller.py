@@ -41,6 +41,10 @@ class LifecycleController:
         self.logger = logger
         self.messenger = messenger
 
+        # Wired post-construction by the plugin to avoid a circular dep
+        # (UIWidgets depends on the LifecycleController instance).
+        self.uiwidgets = None
+
         # In-memory state — distinct from persisted intent (state_store.enabled())
         self._currently_applied: bool = False
         # Saved before being changed; restored on disable.
@@ -136,9 +140,25 @@ class LifecycleController:
 
         # Tear down the previous mode's toolbars, then build the new one.
         self.applier.teardown_owned_toolbars()
+        if self.uiwidgets is not None:
+            self.uiwidgets.clear_injected_refs()
         self.applier.apply(config)
         self.state_store.set_active_mode_id(mode_id)
         self._last_known_good_mode_id = mode_id
+
+        # Always-on widgets (FR-GR-1, FR-GR-2, FR-GR-3): inject after the
+        # applier has built the mode's toolbars so we have a target.
+        if self.uiwidgets is not None:
+            primary = self.applier.primary_toolbar()
+            if primary is not None:
+                self.uiwidgets.inject_into_primary_toolbar(primary)
+            else:
+                self.log(
+                    f"Mode {mode_id!r} has no toolbars; ExitControl not "
+                    f"injected — disable via toggle button or menu.",
+                    "warning",
+                )
+
         self.log(f"Applied mode: {mode_id!r}")
 
     # ------------------------------------------------------------------ switch_mode
@@ -174,6 +194,8 @@ class LifecycleController:
 
         self.log("Exiting simplified mode.")
         self.applier.teardown_owned_toolbars()
+        if self.uiwidgets is not None:
+            self.uiwidgets.clear_injected_refs()
         self._restore_original_layout()
         self.mainwindow.menuBar().show()
         if self._prev_ctx_menu_policy is not None:

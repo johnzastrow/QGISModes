@@ -87,6 +87,20 @@ class ModeApplier:
                 names.append("<deleted>")
         return names
 
+    def primary_toolbar(self):
+        """The first plugin-built toolbar, or ``None`` if the mode has none.
+
+        UIWidgets uses this as the always-on injection target for the
+        ExitControl and (when ≥ 2 modes) the InlineModeSwitcher.
+        """
+        for tb in self._owned_toolbars:
+            try:
+                tb.objectName()  # touch to detect deleted Qt objects
+            except RuntimeError:
+                continue
+            return tb
+        return None
+
     # ------------------------------------------------------------------ internals
 
     def _build_toolbar(self, name: str, spec: dict) -> None:

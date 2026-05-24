@@ -80,9 +80,7 @@
         "algorithms:vector",
         "algorithms:raster",
         "separator",
-        "mHelpToolBar:mActionHelpContents",
-        "separator",
-        "mActionDisableQGISModes"
+        "mHelpToolBar:mActionHelpContents"
       ]
     },
     "mEditingToolBar": {

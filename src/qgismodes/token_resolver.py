@@ -4,16 +4,15 @@
 See design-specification.md §3.4. Token vocabulary is documented in
 docs/customizing-qgis-light.md §2.5.
 
-Ported from QGIS Light's `getItems` / `addItems` / `findAction`. The synthetic
-exit token is renamed `mActionDisableQGISLight` → `mActionDisableQGISModes`.
+Ported from QGIS Light's `getItems` / `addItems` / `findAction`. Note: the
+synthetic exit token that QGIS Light called `mActionDisableQGISLight` is
+**not** resolved here — per FR-GR-3 the exit control is always injected by
+UIWidgets after a mode is applied, regardless of mode-file content.
 
 Realises FR-UI-2, FR-UI-3, FR-UI-4, FR-UI-6.
 """
 
-import os
-
 from qgis.core import QgsApplication
-from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QAction,
     QMenu,
@@ -31,18 +30,12 @@ class TokenResolver:
     The active mode's `algorithms` groups must be supplied via `set_algorithms()`
     before `add_items()` builds a toolbar that references them; ModeApplier
     will do this on each `apply()`.
-
-    The synthetic `mActionDisableQGISModes` token is created with an optional
-    `disable_callback` wired by the plugin (`LifecycleController.disable`).
     """
 
-    DISABLE_TOKEN = "mActionDisableQGISModes"
-
-    def __init__(self, mainwindow, plugin_dir: str, logger=None, disable_callback=None):
+    def __init__(self, mainwindow, plugin_dir: str, logger=None):
         self.mainwindow = mainwindow
         self.plugin_dir = plugin_dir
         self.logger = logger
-        self.disable_callback = disable_callback
         # active mode's algorithms-groups dict; set by ModeApplier per apply()
         self._algorithms: dict = {}
 
@@ -83,18 +76,6 @@ class TokenResolver:
             action.triggered.connect(
                 lambda checked=False, t=token: execAlgorithmDialog(t)
             )
-            return [action]
-
-        # synthetic disable token (mode-file optional; UIWidgets also injects)
-        if token == self.DISABLE_TOKEN:
-            action = QAction(self.mainwindow)
-            action.setObjectName(self.DISABLE_TOKEN)
-            action.setIcon(QIcon(os.path.join(self.plugin_dir, "icons", "qgismodes.svg")))
-            action.setText("Disable QGIS Modes")
-            if self.disable_callback:
-                action.triggered.connect(
-                    lambda checked=False: self.disable_callback()
-                )
             return [action]
 
         # parent:identifier (optionally with trailing '*' wildcard)
