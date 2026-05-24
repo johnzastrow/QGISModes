@@ -4,9 +4,9 @@
 | :-- | :-- |
 | **Document** | Software Requirements Specification |
 | **Project** | QGIS Modes |
-| **Version** | 0.1 — DRAFT for review |
+| **Version** | 0.2 — review complete |
 | **Date** | 2026-05-23 |
-| **Status** | Stage 2 of the requirements & design process; awaiting review. |
+| **Status** | Agenda items ①–④ closed; awaiting Stage 4 (design specification). |
 | **Baseline target** | Release 1.0 (MVP — Phases 1 & 2) |
 | **Related** | [`vision-and-scope.md`](vision-and-scope.md), [`design-multi-mode-and-authoring.md`](design-multi-mode-and-authoring.md), [`customizing-qgis-light.md`](customizing-qgis-light.md) |
 
@@ -96,14 +96,14 @@ author modes by editing JSON in the MVP.
 
 ### 2.4 Operating environment
 
-- QGIS **3.22+ and 4.x**; Qt 5 (QGIS 3) and Qt 6 (QGIS 4); PyQt5 / PyQt6.
+- QGIS **3.44+ and 4.x**; Qt 5 (QGIS 3.44 LTR) and Qt 6 (QGIS 4); PyQt5 / PyQt6.
 - Windows, Linux, macOS.
 - Runtime plugin dependencies: **QuickMapServices**, **DataPlotly**.
 
-> **DECISION D1.** This draft assumes minimum QGIS **3.22** (dual Qt support).
-> Choosing 4.0+ only would drop NFR-CMP-2's Qt 5 obligation. 
->
-> **Decision: minimum QGIS can be 3.4**
+> **D1 resolved.** Minimum QGIS = **3.44** (the latest QGIS 3 LTR) — see §10.
+> 3.44 supports every API this plugin relies on, including `plugin_dependencies`
+> (needs ≥ 3.8) and `mainwindow.initializationCompleted`. The dual Qt 5 / Qt 6
+> obligation (NFR-CMP-2) is preserved.
 
 ### 2.5 Design and implementation constraints
 
@@ -223,9 +223,9 @@ Priorities: **M**ust · **S**hould · **C**ould · **W**on't (this release).
 
 | ID | Pri | Requirement | Acceptance criteria |
 | :-- | :-- | :-- | :-- |
-| FR-PP-1 | S | The system shall apply a single shared provider policy when simplified mode is first entered. | Providers outside the policy are removed once; **DECISION D2**. |
-| FR-PP-2 | M* | A mode switch shall not change provider policy. | Switching modes leaves data providers unchanged. *(M if FR-PP-1 is built.)* |
-| FR-PP-3 | S | The system shall warn the user that restoring removed providers requires a QGIS restart. | A message is shown on exit when providers were removed. |
+| FR-PP-1 | C | The system shall apply a single shared provider policy when simplified mode is first entered. | **Deferred to v1.1+ per D2.** P5 (power user) needs an unrestricted Browser; provider removal is destructive (needs a QGIS restart to undo) and cannot vary per mode. To be revisited as a per-installation toggle. |
+| FR-PP-2 | C | A mode switch shall not change provider policy. | Conditional on FR-PP-1. |
+| FR-PP-3 | C | The system shall warn the user that restoring removed providers requires a QGIS restart. | Conditional on FR-PP-1. |
 
 ### 3.9 Visual Mode Designer (FR-DS) — post-MVP
 
@@ -541,7 +541,7 @@ UCs collectively form the §8 manual verification checklist.
 
 | ID | Pri | Requirement | Acceptance |
 | :-- | :-- | :-- | :-- |
-| NFR-CMP-1 | M | One codebase shall run on QGIS 3.22+ and QGIS 4.x. | Verified on a QGIS 3.x and a QGIS 4.x install. |
+| NFR-CMP-1 | M | One codebase shall run on QGIS **3.44+** and QGIS 4.x. | Verified on a QGIS 3.44 install and a QGIS 4.x install. |
 | NFR-CMP-2 | M | The code shall run under both Qt 5 / PyQt5 and Qt 6 / PyQt6 (fully-scoped enums; the documented shims). | No Qt-version errors on either. |
 | NFR-CMP-3 | M | The plugin shall function on Windows, Linux, and macOS. | Core flows verified per platform (at least Windows; others by review/spot-check). |
 | NFR-CMP-4 | M | `metadata.txt` shall set `qgisMaximumVersion=4.99` to remain on the "QGIS 4 Ready" list. | Field present and correct. |
@@ -630,7 +630,7 @@ cases and the acceptance criteria in §3 and §5.
 **Release 1.0 is Done when:**
 
 1. Every **M** requirement passes its acceptance criteria.
-2. All six use cases (UC-1…UC-6) pass on QGIS 3.22+ and QGIS 4.x.
+2. All thirteen use cases (UC-1…UC-13) pass on QGIS 3.44+ and QGIS 4.x.
 3. Flake8, Bandit, and detect-secrets are clean (NFR-MNT-2, NFR-SEC-1).
 4. The package meets all NFR-PKG requirements.
 5. Goals G1–G5 ([`vision-and-scope.md`](vision-and-scope.md) §5) are met.
@@ -649,14 +649,17 @@ cases and the acceptance criteria in §3 and §5.
 
 ## 10. Open decisions (consolidated)
 
-| # | Decision | This draft assumes | Confirm? |
-| :-- | :-- | :-- | :-- |
-| D1 | Minimum QGIS version | 3.4 (dual Qt 5/6) — §2.4 | [X] |
-| D2 | Provider trimming in MVP | Yes, *Should* — FR-PP-1. Explain in more detail | ☐ |
-| D3 | Legacy `config.json` migration | *Could* — FR-MS-6 (QGIS Light legacy). Broader "import / export" need is now formalised as FR-MS-7a/7b/8/9/10 — see §3.2. | [X] |
-| D4 | Number of bundled example modes | Three (default + two) — Goal G2. Need | ☐ |
-| D5 | Seed user modes dir on first run | Yes, *Should* — FR-MS-5 | [X] |
+All five decisions are **resolved**. This section records final values for
+audit; they are realised in the requirements above and mirrored in
+[`vision-and-scope.md`](vision-and-scope.md) §11.
 
-> **Reviewer:** confirm or amend D1–D5 and flag any requirement to add, remove,
-> or re-prioritise. On sign-off this SRS becomes **baseline v1.0** and Stage 4
-> (design specification) begins.
+| # | Decision | Resolution |
+| :-- | :-- | :-- |
+| D1 | Minimum QGIS version | **3.44+** (and QGIS 4.x) — NFR-CMP-1, §2.4. Latest 3.x LTR; supports every API the plugin relies on. |
+| D2 | Provider trimming in MVP | **Deferred** — FR-PP-* moved to *Could*; revisit alongside v1.1 power-user work. P5 needs an unrestricted Browser. |
+| D3 | Legacy QGIS Light `config.json` migration | **Could** — FR-MS-6. Broader import/export need realised as FR-MS-7a / 7b / 8 / 9 / 10. |
+| D4 | Bundled example modes in 1.0 | **Three** — `default`, `raster-analysis`, `vector-editing`. |
+| D5 | Seed user modes dir on first run | **Yes** (*Should*) — FR-MS-5. |
+
+> All D1–D5 resolved across the agenda-closure commits. On final sign-off this
+> SRS becomes **baseline v1.0** and Stage 4 (design specification) begins.

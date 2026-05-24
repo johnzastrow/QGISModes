@@ -8,7 +8,7 @@ about=QGIS Modes lets you define several simplified QGIS interfaces — "modes"
     selectable configurations, with a planned visual tool for authoring them.
     This release is an early skeleton; see the project documentation.
 version=0.0.1
-qgisMinimumVersion=3.22
+qgisMinimumVersion=3.44
 qgisMaximumVersion=4.99
 author=John Zastrow
 email=br8kwall@gmail.com

@@ -4,9 +4,9 @@
 | :-- | :-- |
 | **Document** | Vision & Scope |
 | **Project** | QGIS Modes |
-| **Version** | 0.1 — DRAFT for review |
-| **Date** | 2026-05-21 |
-| **Status** | Stage 1 of the requirements & design process; awaiting review. |
+| **Version** | 0.2 — review complete |
+| **Date** | 2026-05-23 |
+| **Status** | Reviewed; D1–D5 resolved; awaiting Stage 4 (design specification). |
 | **Related** | [`requirements.md`](requirements.md) (SRS), [`design-multi-mode-and-authoring.md`](design-multi-mode-and-authoring.md) (design), [`customizing-qgis-light.md`](customizing-qgis-light.md) (inherited architecture) |
 
 > This document is **Stage 1** of a formal requirements & design process. It
@@ -191,8 +191,8 @@ shippable. The phased roadmap is detailed in
 Detailed constraints and assumptions are itemised in the SRS
 ([`requirements.md`](requirements.md) §2.4–§2.5). At a glance:
 
-- **Platform:** a single codebase must run on QGIS 3.22+ and QGIS 4.x (Qt 5 and
-  Qt 6), on Windows, Linux, and macOS.
+- **Platform:** a single codebase must run on QGIS **3.44+** and QGIS 4.x (Qt 5
+  and Qt 6), on Windows, Linux, and macOS.
 - **No build system:** a plain QGIS Python plugin — no compile step, and (today)
   no automated test suite.
 - **Licensing:** GPL-3.0-or-later, inherited from QGIS Light.
@@ -203,15 +203,14 @@ Detailed constraints and assumptions are itemised in the SRS
 
 ## 11. Open decisions for review
 
-These need the project owner's confirmation; they are carried as **DECISION**
-callouts in the SRS with a recommended default:
+All five are **resolved** (mirrored in [`requirements.md`](requirements.md) §10).
 
-| # | Decision | Recommended default |
+| # | Decision | Resolution |
 | :-- | :-- | :-- |
-| **D1** | Minimum QGIS version — keep **3.22** (dual Qt 5/Qt 6 support) or target **4.0+** only (simpler, Qt 6 only)? | Keep 3.22 — maximises audience; QGIS Light already proved dual support. |
-| **D2** | Is **data-provider trimming** in the MVP, or deferred? | Include as *Should* — shared provider policy, applied once (design A.5). |
-| **D3** | Ship **legacy `config.json` migration** (import a QGIS Light config as a mode)? | *Could* (low priority) — QGIS Modes is an independent project; few users will have a legacy file. |
-| **D4** | How many **bundled example modes** ship in 1.0? | Three: `default`, plus two of {Data Editing, Analysis, Raster Processing, Output Creation} to prove G2 (≥ 3 modes). |
-| **D5** | **First-run seeding** — copy bundled modes into the user directory so they are editable? | Yes, as *Should* — needed for hand-authoring before the Designer exists. |
+| **D1** | Minimum QGIS version | **3.44+** (and QGIS 4.x). Latest 3.x LTR; supports every API the plugin needs. |
+| **D2** | Data-provider trimming in MVP | **Deferred** — FR-PP-* moved to *Could* for v1.0. P5 (power user) needs an unrestricted Browser; revisit alongside v1.1 power-user work. |
+| **D3** | Legacy QGIS Light `config.json` migration | **Could** — FR-MS-6. Broader import/export need formalised as FR-MS-7a / 7b / 8 / 9 / 10. |
+| **D4** | Bundled example modes in 1.0 | **Three** — `default`, `raster-analysis`, `vector-editing`. |
+| **D5** | First-run seeding of user modes dir | **Yes** (*Should*) — FR-MS-5. |
 
-> Reviewer: confirm or change D1–D5. Changes here ripple into the SRS.
+> All decisions baselined; further changes require a new change-note round.
