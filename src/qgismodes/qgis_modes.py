@@ -12,22 +12,27 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. See the LICENSE file for details.
 
 ==============================================================================
-STATUS: SKELETON — not yet a working plugin.
+STATUS: Phase 1 in progress — foundational components implemented.
 
-This file is a scaffold. The mode-management and lifecycle methods raise
-NotImplementedError; they are placeholders for the design in
-``docs/design-multi-mode-and-authoring.md``. The plugin loads in QGIS and shows
-its toolbar button, but mode switching is not wired up yet.
+Implementation phases (per docs/design-specification.md §3):
+  Phase 1 (done) — StateStore, ModeLoader, ModeRegistry, TokenResolver.
+                   Plugin loads; modes discovered + validated; tokens resolvable.
+  Phase 2        — ModeApplier + LifecycleController (enter / exit / switch).
+  Phase 3        — UIWidgets, ShortcutManager, ImportExportService (MVP done).
+  Post-MVP       — Designer (FR-DS-*), capture (FR-CP-*), menus (FR-UI-9),
+                   quick-run (FR-UI-10), provider trimming (FR-PP-*) — v1.1+.
 
-Implementation order (see the "Phased roadmap" in the design doc):
-  Phase 1 — mode discovery + loading (available_modes, load_mode, migration)
-  Phase 2 — lifecycle refactor (enable / apply_mode / disable), mode picker,
-            and the token resolver ported from QGIS Light
-  Phase 3 — the visual Mode Designer
-  Phase 4 — "Pick from QGIS" capture, live preview, guard rails
+The Phase-2/3 lifecycle and mode-switching methods (enable, apply_mode, disable,
+etc.) still raise NotImplementedError. The plugin loads cleanly, discovers
+modes, and exposes the Phase 1 components on the plugin instance for
+verification via the QGIS Python console:
 
-Starting point: the working logic to port lives in QGIS Light's
-``qgis_light.py`` (QGISLightPlugin) — see ``docs/customizing-qgis-light.md``.
+    from qgis.utils import plugins
+    qm = plugins['qgismodes']
+    qm.registry.available_modes()
+    qm.loader.load(qm.registry.get_path('default'))
+
+See docs/design-specification.md for the full design (baseline tag spec-v1.0).
 ==============================================================================
 """
 
@@ -42,6 +47,11 @@ from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
+
+from .state_store import StateStore
+from .mode_loader import ModeLoader
+from .mode_registry import ModeRegistry
+from .token_resolver import TokenResolver
 
 
 class QGISModesPlugin:
@@ -98,16 +108,38 @@ class QGISModesPlugin:
         self.settings = QgsSettings()
 
         self.plugin_dir = os.path.dirname(os.path.realpath(__file__))
+        self.schema_path = os.path.join(self.plugin_dir, "schema", "mode.schema.json")
 
         # Toolbars created by this plugin, tracked so a mode switch can tear
-        # down exactly what it built — and nothing it borrowed from QGIS.
-        # See design doc, "Open questions / risks".
+        # down exactly what it built — and nothing it borrowed from QGIS
+        # (FR-UI-8). Populated by ModeApplier in Phase 2.
         self._created_toolbars = []
 
-        # Active mode config dict, populated by load_mode().
+        # Active mode config dict; populated by Phase 2 LifecycleController.
         self.config = None
 
         self.log(f"Plugin directory is {self.plugin_dir}.")
+
+        # --- Phase 1 components (design-specification.md §3.1–§3.4, §3.6) ---
+        self.state_store = StateStore(self.settings)
+        self.loader = ModeLoader(self.schema_path)
+        self.registry = ModeRegistry(
+            bundled_dir=self.bundled_modes_dir(),
+            user_dir=self.user_modes_dir(),
+            loader=self.loader,
+            logger=self.log,
+        )
+        self.token_resolver = TokenResolver(
+            mainwindow=self.mainwindow,
+            plugin_dir=self.plugin_dir,
+            logger=self.log,
+            disable_callback=None,  # wired in Phase 2 → LifecycleController.disable
+        )
+
+        # Initial mode discovery (also creates and seeds the user modes dir on
+        # first run per FR-MS-5).
+        count = self.registry.refresh()
+        self.log(f"Discovered {count} mode(s).")
 
     # ------------------------------------------------------------ diagnostics
 
