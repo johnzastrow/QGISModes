@@ -6,7 +6,9 @@ about=QGIS Modes lets you define several simplified QGIS interfaces — "modes"
     switch between them at runtime. It builds on QGIS Light (by Serkan Girgin),
     extending its single config-driven simplified interface into multiple named,
     selectable configurations, with a planned visual tool for authoring them.
-    This release is an early skeleton; see the project documentation.
+    Requires the QuickMapServices and DataPlotly plugins (auto-installed via
+    the QGIS plugin-dependency prompt). This release is an early skeleton; see
+    the project documentation.
 version=0.0.1
 qgisMinimumVersion=3.44
 qgisMaximumVersion=4.99

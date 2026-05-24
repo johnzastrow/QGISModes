@@ -4,9 +4,9 @@
 | :-- | :-- |
 | **Document** | Software Requirements Specification |
 | **Project** | QGIS Modes |
-| **Version** | 0.2 — review complete |
+| **Version** | 1.0 — baseline |
 | **Date** | 2026-05-23 |
-| **Status** | Agenda items ①–④ closed; awaiting Stage 4 (design specification). |
+| **Status** | Baselined (tag `spec-v1.0`). SRS frozen; changes require a change-note round. |
 | **Baseline target** | Release 1.0 (MVP — Phases 1 & 2) |
 | **Related** | [`vision-and-scope.md`](vision-and-scope.md), [`design-multi-mode-and-authoring.md`](design-multi-mode-and-authoring.md), [`customizing-qgis-light.md`](customizing-qgis-light.md) |
 

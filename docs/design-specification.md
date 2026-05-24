@@ -4,9 +4,9 @@
 | :-- | :-- |
 | **Document** | Design Specification |
 | **Project** | QGIS Modes |
-| **Version** | 0.1 — DRAFT |
+| **Version** | 1.0 — baseline |
 | **Date** | 2026-05-23 |
-| **Status** | Stage 4 of the requirements & design process; in review. |
+| **Status** | Baselined (tag `spec-v1.0`). Design frozen; changes require a change-note round. |
 | **Baseline target** | Release 1.0 (MVP — Phases 1 & 2) |
 | **Implements** | [`requirements.md`](requirements.md) v0.2 (baselined SRS) |
 | **Companions** | [`design-multi-mode-and-authoring.md`](design-multi-mode-and-authoring.md) (architectural narrative); [`customizing-qgis-light.md`](customizing-qgis-light.md) (inherited token-resolution mechanism) |

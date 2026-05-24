@@ -4,9 +4,9 @@
 | :-- | :-- |
 | **Document** | Vision & Scope |
 | **Project** | QGIS Modes |
-| **Version** | 0.2 — review complete |
+| **Version** | 1.0 — baseline |
 | **Date** | 2026-05-23 |
-| **Status** | Reviewed; D1–D5 resolved; awaiting Stage 4 (design specification). |
+| **Status** | Baselined (tag `spec-v1.0`). All five stages complete. |
 | **Related** | [`requirements.md`](requirements.md) (SRS), [`design-multi-mode-and-authoring.md`](design-multi-mode-and-authoring.md) (design), [`customizing-qgis-light.md`](customizing-qgis-light.md) (inherited architecture) |
 
 > This document is **Stage 1** of a formal requirements & design process. It
