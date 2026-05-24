@@ -22,7 +22,7 @@ Realises FR-LC-1..9, FR-SW-2, FR-SW-3, FR-GR-3, FR-GR-4.
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtWidgets import QDockWidget, QToolBar
 
-from ._qt_compat import to_enum
+from ._qt_compat import enum_to_int, to_enum
 
 
 _DEFAULT_MODE_ID = "default"
@@ -226,7 +226,7 @@ class LifecycleController:
                 continue
             toolbars.append({
                 "name": name,
-                "area": int(self.mainwindow.toolBarArea(tb)),
+                "area": enum_to_int(self.mainwindow.toolBarArea(tb)),
                 "hidden": tb.isHidden(),
             })
 
@@ -237,8 +237,8 @@ class LifecycleController:
                 continue
             panels.append({
                 "name": name,
-                "area": int(self.mainwindow.dockWidgetArea(d)),
-                "features": int(d.features()),
+                "area": enum_to_int(self.mainwindow.dockWidgetArea(d)),
+                "features": enum_to_int(d.features()),
                 "hidden": d.isHidden(),
                 "floating": d.isFloating(),
             })
