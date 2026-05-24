@@ -12,25 +12,25 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. See the LICENSE file for details.
 
 ==============================================================================
-STATUS: Phase 1 in progress — foundational components implemented.
+STATUS: Phase 2 done — lifecycle (enter / exit / switch) is live.
 
 Implementation phases (per docs/design-specification.md §3):
   Phase 1 (done) — StateStore, ModeLoader, ModeRegistry, TokenResolver.
-                   Plugin loads; modes discovered + validated; tokens resolvable.
-  Phase 2        — ModeApplier + LifecycleController (enter / exit / switch).
-  Phase 3        — UIWidgets, ShortcutManager, ImportExportService (MVP done).
+  Phase 2 (done) — ModeApplier + LifecycleController. Toggle button now
+                   actually enters / exits simplified mode; the synthetic
+                   mActionDisableQGISModes token is wired to disable().
+  Phase 3        — UIWidgets, ShortcutManager, ImportExportService (MVP).
   Post-MVP       — Designer (FR-DS-*), capture (FR-CP-*), menus (FR-UI-9),
-                   quick-run (FR-UI-10), provider trimming (FR-PP-*) — v1.1+.
+                   quick-run (FR-UI-10), provider trimming (FR-PP-*).
 
-The Phase-2/3 lifecycle and mode-switching methods (enable, apply_mode, disable,
-etc.) still raise NotImplementedError. The plugin loads cleanly, discovers
-modes, and exposes the Phase 1 components on the plugin instance for
-verification via the QGIS Python console:
+Public API on the plugin instance:
 
-    from qgis.utils import plugins
-    qm = plugins['qgismodes']
-    qm.registry.available_modes()
-    qm.loader.load(qm.registry.get_path('default'))
+    qm = qgis.utils.plugins['qgismodes']
+    qm.state_store, qm.loader, qm.registry, qm.token_resolver,
+    qm.applier, qm.lifecycle                                # components
+    qm.enable(id) / qm.disable() / qm.apply_mode(id) /
+    qm.switch_mode(id) / qm.available_modes() / qm.load_mode(id)
+                                                            # convenience wrappers
 
 See docs/design-specification.md for the full design (baseline tag spec-v1.0).
 ==============================================================================
@@ -44,7 +44,6 @@ from qgis.core import (
     QgsSettings,
 )
 from qgis.gui import QgisInterface
-from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 
@@ -52,71 +51,36 @@ from .state_store import StateStore
 from .mode_loader import ModeLoader
 from .mode_registry import ModeRegistry
 from .token_resolver import TokenResolver
+from .mode_applier import ModeApplier
+from .lifecycle_controller import LifecycleController
 
 
 class QGISModesPlugin:
     """QGIS Modes plugin — manages multiple switchable simplified interfaces.
 
-    QGIS Modes builds on QGIS Light. QGIS Light loads exactly one ``config.json``
-    describing one simplified interface; QGIS Modes loads one of several named
-    "mode" files (Data Editing, Analysis, Raster Processing, Output Creation,
-    ...) and lets the user switch between them at runtime.
-
-    See ``docs/design-multi-mode-and-authoring.md`` for the full design and
-    ``docs/customizing-qgis-light.md`` for the inherited QGIS Light architecture.
+    The plugin class is the orchestrator / entry point. The real work is done
+    by the component objects assembled in ``__init__`` (see
+    ``docs/design-specification.md`` §3).
     """
 
-    #: Prefix for every key this plugin writes to QgsSettings.
     SETTINGS_PREFIX = "qgismodes"
-
-    #: Label of the Log Messages panel tab used by this plugin.
     LOG_TAB = "QGIS Modes"
 
-    # Message levels (config string -> Qgis.MessageLevel).
     _message_levels = {
         "info": Qgis.MessageLevel.Info,
         "warning": Qgis.MessageLevel.Warning,
         "error": Qgis.MessageLevel.Critical,
     }
 
-    # Toolbar areas (config string -> Qt enum).
-    _toolbar_areas = {
-        "top": Qt.ToolBarArea.TopToolBarArea,
-        "bottom": Qt.ToolBarArea.BottomToolBarArea,
-        "left": Qt.ToolBarArea.LeftToolBarArea,
-        "right": Qt.ToolBarArea.RightToolBarArea,
-    }
-
-    # Panel areas (config string -> Qt enum).
-    _panel_areas = {
-        "top": Qt.DockWidgetArea.TopDockWidgetArea,
-        "bottom": Qt.DockWidgetArea.BottomDockWidgetArea,
-        "left": Qt.DockWidgetArea.LeftDockWidgetArea,
-        "right": Qt.DockWidgetArea.RightDockWidgetArea,
-    }
-
-    # ----------------------------------------------------------------- setup
+    # ------------------------------------------------------------------ setup
 
     def __init__(self, iface: QgisInterface):
-        """Store handles and locate the mode directories.
-
-        Args:
-            iface: QGIS interface object.
-        """
         self.iface = iface
         self.mainwindow = iface.mainWindow()
         self.settings = QgsSettings()
 
         self.plugin_dir = os.path.dirname(os.path.realpath(__file__))
         self.schema_path = os.path.join(self.plugin_dir, "schema", "mode.schema.json")
-
-        # Toolbars created by this plugin, tracked so a mode switch can tear
-        # down exactly what it built — and nothing it borrowed from QGIS
-        # (FR-UI-8). Populated by ModeApplier in Phase 2.
-        self._created_toolbars = []
-
-        # Active mode config dict; populated by Phase 2 LifecycleController.
-        self.config = None
 
         self.log(f"Plugin directory is {self.plugin_dir}.")
 
@@ -133,18 +97,33 @@ class QGISModesPlugin:
             mainwindow=self.mainwindow,
             plugin_dir=self.plugin_dir,
             logger=self.log,
-            disable_callback=None,  # wired in Phase 2 → LifecycleController.disable
+            disable_callback=None,  # wired below after lifecycle exists
         )
 
-        # Initial mode discovery (also creates and seeds the user modes dir on
-        # first run per FR-MS-5).
         count = self.registry.refresh()
         self.log(f"Discovered {count} mode(s).")
+
+        # --- Phase 2 components (design-specification.md §3.3, §3.5) ---
+        self.applier = ModeApplier(
+            mainwindow=self.mainwindow,
+            token_resolver=self.token_resolver,
+            logger=self.log,
+        )
+        self.lifecycle = LifecycleController(
+            mainwindow=self.mainwindow,
+            registry=self.registry,
+            loader=self.loader,
+            state_store=self.state_store,
+            applier=self.applier,
+            logger=self.log,
+            messenger=self.message,
+        )
+        # Wire TokenResolver's synthetic exit action to lifecycle.disable.
+        self.token_resolver.disable_callback = self.lifecycle.disable
 
     # ------------------------------------------------------------ diagnostics
 
     def log(self, message: str, level: str = "info"):
-        """Log a message to the QGIS Log Messages panel ("QGIS Modes" tab)."""
         QgsApplication.messageLog().logMessage(
             message,
             self.LOG_TAB,
@@ -152,7 +131,6 @@ class QGISModesPlugin:
         )
 
     def message(self, message: str, level: str = "info"):
-        """Show a message in the QGIS message bar."""
         self.iface.messageBar().pushMessage(
             self.LOG_TAB,
             message,
@@ -160,185 +138,133 @@ class QGISModesPlugin:
         )
 
     # ---------------------------------------------------------- Qt5/Qt6 shims
-    # Carried over verbatim from QGIS Light: the two known Qt 5 / Qt 6 API
-    # differences. A single codebase must support QGIS 3 (Qt5) and QGIS 4 (Qt6).
+    # Kept on the plugin for back-compat with any code calling
+    # plugin.associatedObjects() / plugin.toEnum(). New code should import
+    # ._qt_compat directly.
 
     @staticmethod
     def associatedObjects(action: QAction) -> list:
-        """Return objects associated with an action (Qt5/Qt6 compatible).
-
-        QAction.associatedWidgets() was renamed associatedObjects() in Qt6.
-        """
         if hasattr(action, "associatedObjects"):
             return action.associatedObjects()
         return action.associatedWidgets()
 
     @staticmethod
     def toEnum(enum_type, value):
-        """Coerce a value read from QgsSettings to a Qt enum (Qt5/Qt6).
-
-        QgsSettings preserves Qt enum types under Qt6 but returns plain integers
-        under Qt5.
-        """
         if isinstance(value, enum_type):
             return value
         return enum_type(value)
 
-    # --------------------------------------------------------- mode locations
+    # ---------------------------------------------------------- mode locations
 
     def bundled_modes_dir(self) -> str:
-        """Return the path to the read-only modes shipped with the plugin."""
+        """Path to the read-only modes shipped with the plugin."""
         return os.path.join(self.plugin_dir, "modes")
 
     def user_modes_dir(self) -> str:
-        """Return the path to the user's editable modes in the active profile.
-
-        See design doc A.2. User modes shadow bundled modes with the same id and
-        survive plugin upgrades.
-        """
+        """Path to the user's editable modes in the active QGIS profile."""
         return os.path.join(
             QgsApplication.qgisSettingsDirPath(), "qgismodes", "modes"
         )
 
-    def active_mode_id(self):
-        """Return the id of the currently selected mode, or None."""
-        return self.settings.value(f"{self.SETTINGS_PREFIX}/mode")
-
-    # -------------------------------------------------------- mode management
-    # TODO Phase 1 — see design doc, Part A.
+    # ----------------------------------------------------- convenience wrappers
+    # Thin delegations so Python-console users can call plugin.enable() etc.
+    # The actual implementations live on the components.
 
     def available_modes(self) -> list:
-        """Return metadata for every installed mode (bundled + user).
+        return self.registry.available_modes()
 
-        TODO Phase 1: scan bundled_modes_dir() and user_modes_dir() for *.json,
-        parse each file's ``meta`` block, and let user files shadow bundled ones
-        by id. See design doc A.2.
-        """
-        raise NotImplementedError("available_modes() — design doc A.2 (Phase 1)")
+    def load_mode(self, mode_id: str):
+        path = self.registry.get_path(mode_id)
+        if not path:
+            return None, []
+        return self.loader.load(path)
 
-    def load_mode(self, mode_id: str) -> dict:
-        """Load and validate a mode config by id.
+    def enable(self, mode_id: str = None) -> None:
+        self.lifecycle.enable(mode_id)
 
-        TODO Phase 1: resolve mode_id to a file, parse JSON, validate against
-        schema/mode.schema.json, and return the config dict. See design doc A.6.
-        """
-        raise NotImplementedError("load_mode() — design doc A.6 (Phase 1)")
+    def apply_mode(self, mode_id: str) -> None:
+        self.lifecycle.apply_mode(mode_id)
 
-    def migrate_legacy_config(self):
-        """Import an existing single config.json as a 'default' mode.
+    def switch_mode(self, mode_id: str) -> None:
+        self.lifecycle.switch_mode(mode_id)
 
-        TODO Phase 1: see design doc A.7.
-        """
-        raise NotImplementedError("migrate_legacy_config() — design doc A.7")
+    def disable(self) -> None:
+        self.lifecycle.disable()
 
-    # -------------------------------------------------------------- lifecycle
-    # TODO Phase 2 — the enable / apply_mode / disable refactor; see design
-    # doc A.4. The logic to adapt lives in QGIS Light's QGISLightPlugin.
-
-    def enable(self, mode_id: str = None):
-        """Enter simplified mode (first time) and apply a mode.
-
-        TODO Phase 2: on first entry, capture the original layout, hide the
-        standard UI, and apply the shared provider policy once; then call
-        apply_mode(). See design doc A.4.
-        """
-        raise NotImplementedError("enable() — design doc A.4 (Phase 2)")
-
-    def apply_mode(self, mode_id: str):
-        """Swap the simplified UI to a different mode (safe while enabled).
-
-        TODO Phase 2: tear down self._created_toolbars, load the mode, rebuild
-        toolbars, and re-apply panels and the status bar. Must NOT delete
-        QActions borrowed from QGIS. See design doc A.4 and "Open questions".
-        """
-        raise NotImplementedError("apply_mode() — design doc A.4 (Phase 2)")
-
-    def switch_mode(self, mode_id: str):
-        """Switch to another mode while staying in simplified mode.
-
-        TODO Phase 2: thin wrapper over apply_mode() for the in-canvas mode
-        switcher. See design doc A.3.
-        """
-        raise NotImplementedError("switch_mode() — design doc A.3 (Phase 2)")
-
-    def disable(self):
-        """Return to the standard QGIS interface.
-
-        TODO Phase 2: tear down created toolbars and restore the captured
-        original layout. See design doc A.4.
-        """
-        raise NotImplementedError("disable() — design doc A.4 (Phase 2)")
-
-    def _capture_original_layout(self):
-        """Store the current toolbar/panel layout so it can be restored.
-
-        TODO Phase 2: runs once, on first enable(). See design doc A.4.
-        """
-        raise NotImplementedError("_capture_original_layout() — Phase 2")
-
-    def restore_layout(self):
-        """Restore the toolbar/panel layout captured before simplification.
-
-        TODO Phase 2.
-        """
-        raise NotImplementedError("restore_layout() — Phase 2")
-
-    # ------------------------------------------------------- token resolution
-    # The core mechanism inherited from QGIS Light. See
-    # docs/customizing-qgis-light.md, "Token resolution — the core mechanism".
+    def active_mode_id(self):
+        return self.state_store.active_mode_id()
 
     def get_items(self, token: str) -> list:
-        """Resolve a config token to live Qt objects.
+        return self.token_resolver.get_items(token)
 
-        TODO Phase 2: port QGIS Light's getItems(). See the customization guide,
-        section 2.5.
+    def add_items(self, parent: QWidget, items: list) -> None:
+        self.token_resolver.add_items(parent, items)
+
+    def migrate_legacy_config(self):
+        """Import an existing QGIS Light config.json as a 'default' mode.
+
+        FR-MS-6 is *Could* per decision D3; deferred to v1.1 / on demand.
         """
-        raise NotImplementedError("get_items() — port from QGIS Light getItems()")
-
-    def add_items(self, parent: QWidget, items: list):
-        """Recursively place resolved objects into a toolbar or menu.
-
-        TODO Phase 2: port QGIS Light's addItems(). See the customization guide,
-        section 2.6.
-        """
-        raise NotImplementedError("add_items() — port from QGIS Light addItems()")
+        raise NotImplementedError("FR-MS-6 is *Could* / post-MVP")
 
     # -------------------------------------------------------- QGIS plugin API
 
     def initGui(self):
         """Build the plugin's entry points in the QGIS UI.
 
-        Adds the QGIS Modes toggle button to the file toolbar and the View menu.
-        TODO Phase 2: turn the button into a split button whose dropdown lists
-        the available modes (design doc A.3).
+        Adds the QGIS Modes toggle button to the file toolbar and View menu.
+        If simplified mode was previously enabled, schedules re-entry for
+        after QGIS finishes loading other plugins (FR-LC-6).
         """
-        self.log("Initializing QGIS Modes (skeleton).")
+        self.log("Initializing QGIS Modes.")
 
         action = QAction(self.mainwindow)
         action.setObjectName("mActionToggleQGISModes")
         action.setIcon(QIcon(os.path.join(self.plugin_dir, "icons/qgismodes.svg")))
         action.setText("QGIS Modes")
         action.triggered.connect(self._on_toggle)
-
         self.iface.fileToolBar().addAction(action)
         self.iface.viewMenu().addAction(action)
 
-    def _on_toggle(self):
-        """Placeholder handler for the toggle button.
+        # FR-LC-6: defer re-entry so tokens referencing other plugins' toolbars
+        # resolve correctly after those plugins have loaded.
+        if self.state_store.enabled():
+            self.log("Persisted as enabled; deferring re-entry to initializationCompleted.")
+            try:
+                self.mainwindow.initializationCompleted.connect(self._enter_on_init)
+            except Exception as e:  # noqa: BLE001
+                self.log(f"Could not connect initializationCompleted: {e}", "warning")
+                # Fallback — re-enter now and accept the timing risk.
+                self._enter_on_init()
 
-        TODO Phase 2: replace with the real enable()/disable() logic and the
-        mode picker.
-        """
-        self.message(
-            "QGIS Modes is a skeleton — mode switching is not implemented yet. "
-            "See docs/design-multi-mode-and-authoring.md.",
-            "warning",
-        )
-        self.log("Toggle clicked; lifecycle not yet implemented.")
+    def _on_toggle(self):
+        """Toggle button: enter if standard, exit if simplified."""
+        if self.lifecycle.is_currently_applied():
+            self.lifecycle.disable()
+        else:
+            self.lifecycle.enable()
+
+    def _enter_on_init(self):
+        """Re-enter simplified mode after QGIS startup completes (FR-LC-6)."""
+        try:
+            self.mainwindow.initializationCompleted.disconnect(self._enter_on_init)
+        except (TypeError, RuntimeError):
+            pass  # not connected, or already disconnected
+        self.lifecycle.enable(self.state_store.active_mode_id())
 
     def unload(self):
-        """Remove the plugin's UI when QGIS unloads it."""
+        """Remove the plugin's UI when QGIS unloads it.
+
+        If simplified mode is currently applied, restore the standard UI but
+        preserve the enabled-intent flag so the next plugin load resumes the
+        same mode (FR-LC-8).
+        """
         self.log("Unloading QGIS Modes.")
+        try:
+            self.lifecycle.teardown_for_unload()
+        except Exception as e:  # noqa: BLE001
+            self.log(f"Error during lifecycle teardown: {e}", "warning")
+
         action = self.mainwindow.findChild(QAction, "mActionToggleQGISModes")
         if action:
             for widget in self.associatedObjects(action):
