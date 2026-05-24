@@ -90,7 +90,7 @@ print(f"Available plugins (count): {len(qgis.utils.available_plugins)}")
 print(f"qgismodes available?       {PLUGIN_NAME in qgis.utils.available_plugins}")
 
 
-_print_header("4. Enable + start the plugin")
+_print_header("4. Load + start the plugin")
 
 QgsSettings().setValue(f"PythonPlugins/{PLUGIN_NAME}", True)
 
@@ -98,8 +98,20 @@ if PLUGIN_NAME in qgis.utils.plugins:
     print(f"{PLUGIN_NAME} already loaded; reloading via Plugin Reloader is recommended")
     print("for any code changes you've made since the last load.")
 else:
-    started = qgis.utils.startPlugin(PLUGIN_NAME)
-    print(f"qgis.utils.startPlugin({PLUGIN_NAME!r}) returned: {started}")
+    # IMPORTANT: loadPlugin imports the module; startPlugin then runs
+    # classFactory + initGui. startPlugin alone silently returns False if
+    # the module hasn't been imported yet.
+    loaded = qgis.utils.loadPlugin(PLUGIN_NAME)
+    print(f"qgis.utils.loadPlugin({PLUGIN_NAME!r}) returned: {loaded}")
+    if loaded:
+        started = qgis.utils.startPlugin(PLUGIN_NAME)
+        print(f"qgis.utils.startPlugin({PLUGIN_NAME!r}) returned: {started}")
+        if not started:
+            print("\nstartPlugin failed — classFactory or initGui raised.")
+            print("Run tools/diagnose_load.py to see the inline traceback.")
+    else:
+        print("\nloadPlugin failed — import error in qgis_modes.py or a submodule.")
+        print("Run tools/diagnose_load.py to see the inline traceback.")
 
 print(f"qgismodes loaded?  {PLUGIN_NAME in qgis.utils.plugins}")
 
