@@ -1,0 +1,209 @@
+{
+  "meta": {
+    "id": "default2",
+    "name": "Default2",
+    "description": "The original QGIS Light simplified interface, imported as a starting mode.",
+    "icon": "icons/qgis-green.svg",
+    "version": "1.0",
+    "schema": 1
+  },
+  "toolbars": {
+    "mMainToolBar": {
+      "title": "Main Toolbar",
+      "area": "top",
+      "items": [
+        "mFileToolBar:mActionNewProject",
+        "mFileToolBar:mActionOpenProject",
+        "mFileToolBar:mActionSaveProject",
+        "separator",
+        [
+          "mDataSourceManagerToolBar:mActionDataSourceManager",
+          "mLayerToolBar:mActionAddOgrLayer",
+          "mLayerToolBar:mActionAddRasterLayer",
+          "mLayerToolBar:mActionAddDelimitedText"
+        ],
+        "mWebToolBar:QuickMapServices",
+        [
+          "mDataSourceManagerToolBar:mActionNewGeoPackageLayer",
+          "mDataSourceManagerToolBar:mActionNewVectorLayer",
+          "mDataSourceManagerToolBar:mActionNewMemoryLayer"
+        ],
+        "separator",
+        [
+          "mMapNavToolBar:mActionPan",
+          "mMapNavToolBar:mActionPanToSelected"
+        ],
+        [
+          "mMapNavToolBar:mActionZoomIn",
+          "mMapNavToolBar:mActionZoomOut",
+          "mMapNavToolBar:mActionZoomFullExtent",
+          "mMapNavToolBar:mActionZoomToSelected",
+          "mMapNavToolBar:mActionZoomToLayers",
+          "mMapNavToolBar:mActionZoomActualSize",
+          "mMapNavToolBar:mActionZoomLast",
+          "mMapNavToolBar:mActionZoomNext"
+        ],
+        [
+          "mSelectionToolBar:mActionSelectFeatures",
+          "mSelectionToolBar:mActionSelectPolygon",
+          "mSelectionToolBar:mActionSelectFreehand",
+          "mSelectionToolBar:mActionSelectRadius",
+          "section:",
+          "mSelectionToolBar:mProcessingAlg_native:selectbylocation",
+          "mSelectionToolBar:mProcessingAlg_native:selectwithindistance",
+          "section:",
+          "mSelectionToolBar:mActionSelectByForm",
+          "mSelectionToolBar:mActionSelectByExpression",
+          "section:",
+          "mSelectionToolBar:mActionSelectAll",
+          "mSelectionToolBar:mActionInvertSelection",
+          "mSelectionToolBar:mActionDeselectAll",
+          "mSelectionToolBar:mActionDeselectActiveLayer"
+        ],
+        "separator",
+        "mAttributesToolBar:mActionIdentify",
+        [
+          "mAttributesToolBar:mActionMeasure",
+          "mAttributesToolBar:mActionMeasureArea",
+          "mAttributesToolBar:mActionMeasureBearing",
+          "mAttributesToolBar:mActionMeasureAngle"
+        ],
+        [
+          "mAttributesToolBar:mActionOpenTable",
+          "mAttributesToolBar:mActionOpenTableSelected",
+          "mAttributesToolBar:mActionOpenTableVisible"
+        ],
+        "mAttributesToolBar:mActionStatisticalSummary",
+        "mPluginToolBar:DataPlotly",
+        "mAttributesToolBar:mActionOpenFieldCalc",
+        "separator",
+        "algorithms:vector",
+        "algorithms:raster",
+        "separator",
+        "mHelpToolBar:mActionHelpContents",
+        "separator",
+        "mActionDisableQGISModes"
+      ]
+    },
+    "mEditingToolBar": {
+      "title": "Editing Toolbar",
+      "area": "left",
+      "items": [
+        "mDigitizeToolBar:mActionToggleEditing",
+        [
+          "mDigitizeToolBar:mActionSaveEdits",
+          "mDigitizeToolBar:mActionSaveAllEdits"
+        ],
+        [
+          "mDigitizeToolBar:mActionRollbackEdits",
+          "mDigitizeToolBar:mActionRollbackAllEdits"
+        ],
+        [
+          "mDigitizeToolBar:mActionCancelEdits",
+          "mDigitizeToolBar:mActionCancelAllEdits"
+        ],
+        "mDigitizeToolBar:mActionAddFeature",
+        "mDigitizeToolBar:mActionDigitizeShape*",
+        [
+          "mShapeDigitizeToolBar:Circular string by radius",
+          "mShapeDigitizeToolBar:Circle from 2 points*",
+          "mShapeDigitizeToolBar:Ellipse from center and 2 points*",
+          "mShapeDigitizeToolBar:Rectangle from center and a point*",
+          "mShapeDigitizeToolBar:Regular polygon from 2 points*"
+        ],
+        "mAdvancedDigitizeToolBar:mEnableAction",
+        [
+          "mAdvancedDigitizeToolBar:mActionMoveFeature",
+          "mAdvancedDigitizeToolBar:mActionMoveFeatureCopy",
+          "mAdvancedDigitizeToolBar:mActionRotateFeature",
+          "mAdvancedDigitizeToolBar:mActionScaleFeature"
+        ],
+        [
+          "mDigitizeToolBar:mActionVertexTool",
+          "mDigitizeToolBar:mActionVertexToolActiveLayer"
+        ],
+        "mDigitizeToolBar:mActionMultiEditAttributes",
+        "mDigitizeToolBar:mActionCutFeatures",
+        "mDigitizeToolBar:mActionCopyFeatures",
+        "mDigitizeToolBar:mActionPasteFeatures",
+        "mDigitizeToolBar:mActionDeleteSelected",
+        "mDigitizeToolBar:mActionUndo",
+        "mDigitizeToolBar:mActionRedo"
+      ]
+    }
+  },
+  "algorithms": {
+    "raster": {
+      "icon": ":/images/themes/default/mIconRaster.svg",
+      "items": [
+        "gdal:viewshed",
+        "native:hillshade",
+        "qgis:relief",
+        "native:aspect",
+        "gdal:slope",
+        "gdal:contour",
+        "gdal:contour_polygon",
+        "section:Interpolation",
+        "qgis:idwinterpolation",
+        "qgis:heatmapkerneldensityestimation",
+        "section:Processing",
+        "gdal:fillnodata",
+        "native:fillnodata",
+        "native:rescaleraster",
+        "native:roundrastervalues",
+        "native:createconstantrasterlayer",
+        "gdal:cliprasterbyextent",
+        "gdal:cliprasterbymasklayer",
+        "section:Statistics",
+        "native:rasterlayerstatistics",
+        "native:rasterlayerzonalstats",
+        "native:zonalhistogram",
+        "native:rasterlayeruniquevaluesreport"
+      ]
+    },
+    "vector": {
+      "icon": ":/images/themes/default/mIconVector.svg",
+      "items": [
+        "native:buffer",
+        "native:clip",
+        "gdal:clipvectorbyextent",
+        "native:difference",
+        "native:intersection",
+        "native:lineintersections",
+        "native:symmetricaldifference",
+        "native:union",
+        "native:simplifygeometries",
+        "native:smoothgeometry",
+        "native:dissolve",
+        "section:Boundary",
+        "qgis:minimumboundinggeometry",
+        "native:minimumenclosingcircle",
+        "native:convexhull",
+        "qgis:concavehull",
+        "qgis:knearestconcavehull",
+        "native:boundingboxes",
+        "native:centroids",
+        "section:Geometry",
+        "native:extractvertices",
+        "native:explodelines",
+        "native:extendlines",
+        "qgis:eliminateselectedpolygons",
+        "native:fixgeometries"
+      ]
+    }
+  },
+  "panels": {
+    "Overview": "fixed:left",
+    "Layers": "fixed:left",
+    "DataPlotly-DataPlotly-Dock": "hidden:right",
+    "ResultsViewer": "hidden:right",
+    "StatisticalSummaryDockWidget": "hidden:right",
+    "VertexEditor": "hidden:right"
+  },
+  "statusbar": {
+    "LocatorWidget": false,
+    "mRotationLabel": false,
+    "mRotationEdit": false,
+    "mRenderSuppressionCBox": false
+  }
+}
