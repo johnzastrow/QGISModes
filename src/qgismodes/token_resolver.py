@@ -13,6 +13,7 @@ Realises FR-UI-2, FR-UI-3, FR-UI-4, FR-UI-6.
 """
 
 from qgis.core import QgsApplication
+from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QAction,
     QMenu,
