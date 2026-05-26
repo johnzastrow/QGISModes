@@ -12,8 +12,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. See the LICENSE file for details.
 
 ==============================================================================
-STATUS: Phase 3b done — UIWidgets carries the visible UI; Phase 3c will wire
-import/export.
+STATUS: Phase 3 (MVP) done — all nine components from design-spec §3 wired.
 
 Implementation phases (per docs/design-specification.md §3):
   Phase 1  (done) — StateStore, ModeLoader, ModeRegistry, TokenResolver.
@@ -27,8 +26,11 @@ Implementation phases (per docs/design-specification.md §3):
                     ExitControl (+ optional InlineModeSwitcher) is injected
                     into the active mode's primary toolbar regardless of
                     mode-file content (FR-GR-1, FR-GR-2, FR-GR-3).
-  Phase 3c        — ImportExportService (real handlers behind the
-                    Import/Export menu stubs).
+  Phase 3c (done) — ImportExportService. Real handlers behind the
+                    dropdown / menu entries; ConflictDialog and
+                    RequiresPreviewDialog from dialogs.py drive the
+                    per-file decisions. Post-batch refresh hits registry,
+                    shortcuts, and UIWidgets in one pass.
   Post-MVP       — Designer (FR-DS-*), capture (FR-CP-*), menus (FR-UI-9),
                    quick-run (FR-UI-10), provider trimming (FR-PP-*).
 
@@ -36,7 +38,8 @@ Public API on the plugin instance:
 
     qm = qgis.utils.plugins['qgismodes']
     qm.state_store, qm.loader, qm.registry, qm.token_resolver,
-    qm.applier, qm.lifecycle, qm.shortcuts, qm.uiwidgets    # components
+    qm.applier, qm.lifecycle, qm.shortcuts, qm.uiwidgets,
+    qm.importexport                                         # components
     qm.enable(id) / qm.disable() / qm.apply_mode(id) /
     qm.switch_mode(id) / qm.available_modes() / qm.load_mode(id)
                                                             # convenience wrappers
@@ -63,6 +66,7 @@ from .mode_applier import ModeApplier
 from .lifecycle_controller import LifecycleController
 from .shortcut_manager import ShortcutManager
 from .ui_widgets import UIWidgets
+from .import_export_service import ImportExportService
 
 
 class QGISModesPlugin:
@@ -144,11 +148,27 @@ class QGISModesPlugin:
             lifecycle=self.lifecycle,
             shortcuts=self.shortcuts,
             plugin_dir=self.plugin_dir,
+            state_store=self.state_store,
             logger=self.log,
             messenger=self.message,
         )
         # Back-edge: LifecycleController calls uiwidgets after each apply.
         self.lifecycle.uiwidgets = self.uiwidgets
+
+        # --- Phase 3c component (design-specification.md §3.7) ---
+        self.importexport = ImportExportService(
+            loader=self.loader,
+            registry=self.registry,
+            user_dir=self.user_modes_dir(),
+            state_store=self.state_store,
+            conflict_dialog=self.uiwidgets.show_conflict_dialog,
+            requires_dialog=self.uiwidgets.show_requires_dialog,
+            on_batch_complete=self._after_import_export_batch,
+            logger=self.log,
+            messenger=self.message,
+        )
+        # Back-edge: UIWidgets stubs route through this service handle.
+        self.uiwidgets.importexport = self.importexport
 
     # ------------------------------------------------------------ diagnostics
 
@@ -272,6 +292,12 @@ class QGISModesPlugin:
             self.lifecycle.disable()
         else:
             self.lifecycle.enable()
+
+    def _after_import_export_batch(self):
+        """Refresh registry, shortcuts, and UIWidgets after every batch."""
+        self.registry.refresh()
+        self.shortcuts.refresh()
+        self.uiwidgets.refresh_mode_lists()
 
     def _enter_on_init(self):
         """Re-enter simplified mode after QGIS startup completes (FR-LC-6)."""

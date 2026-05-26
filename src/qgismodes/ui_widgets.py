@@ -18,9 +18,11 @@ See design-specification.md §3.9 + §7. Implements:
   * ``InlineModeSwitcher`` (§7.3) — a ``QComboBox`` injected into the active
     mode's primary toolbar **only when ≥ 2 modes are installed** (FR-GR-2).
 
-Phase 3b ships the visible UI. Import / Export menu entries are wired to
-stubs that surface a "not yet implemented" message on the QGIS message bar;
-Phase 3c repoints them at ``ImportExportService``.
+Phase 3b shipped the visible UI; Phase 3c wired the Import / Export menu
+entries through to ``ImportExportService``. UIWidgets is also the host for
+the modal dialogs from ``dialogs.py`` (``show_conflict_dialog``,
+``show_requires_dialog``, ``show_export_selection_dialog``) — the service
+calls these adapters rather than touching widgets directly.
 
 Realises FR-SW-1, FR-SW-4, FR-SW-5, FR-SW-6, FR-GR-1, FR-GR-2, FR-GR-3.
 """
@@ -32,9 +34,16 @@ from qgis.PyQt.QtWidgets import (
     QAction,
     QActionGroup,
     QComboBox,
+    QFileDialog,
     QMenu,
     QToolBar,
     QToolButton,
+)
+
+from .dialogs import (
+    ConflictDialog,
+    ExportSelectionDialog,
+    RequiresPreviewDialog,
 )
 
 
@@ -49,15 +58,20 @@ class UIWidgets:
     """Builds and owns the plugin's user-facing widgets."""
 
     def __init__(self, mainwindow, iface, registry, lifecycle, shortcuts,
-                 plugin_dir, logger=None, messenger=None):
+                 plugin_dir, state_store, logger=None, messenger=None):
         self.mainwindow = mainwindow
         self.iface = iface
         self.registry = registry
         self.lifecycle = lifecycle
         self.shortcuts = shortcuts
         self.plugin_dir = plugin_dir
+        self.state_store = state_store
         self.logger = logger
         self.messenger = messenger
+
+        # Wired post-construction by the plugin (the service depends on
+        # UIWidgets's dialog adapters, so we get the service handle later).
+        self.importexport = None
 
         self._icon = QIcon(
             os.path.join(self.plugin_dir, "icons", "qgismodes.svg")
@@ -134,11 +148,11 @@ class UIWidgets:
         menu.addSeparator()
 
         menu.addAction(self._make_action(
-            "Import mode…", lambda: self._stub("Import mode")))
+            "Import mode…", self._on_import_files))
         menu.addAction(self._make_action(
-            "Import folder…", lambda: self._stub("Import folder")))
+            "Import folder…", self._on_import_folder))
         menu.addAction(self._make_action(
-            "Export modes…", lambda: self._stub("Export modes")))
+            "Export modes…", self._on_export))
         menu.addSeparator()
 
         manage = QAction("Manage modes…", menu)
@@ -259,11 +273,11 @@ class UIWidgets:
         if modes:
             menu.addSeparator()
         menu.addAction(self._make_action(
-            "Import mode…", lambda: self._stub("Import mode")))
+            "Import mode…", self._on_import_files))
         menu.addAction(self._make_action(
-            "Import folder…", lambda: self._stub("Import folder")))
+            "Import folder…", self._on_import_folder))
         menu.addAction(self._make_action(
-            "Export modes…", lambda: self._stub("Export modes")))
+            "Export modes…", self._on_export))
 
         self._toggle_menu = menu
         self._mode_group = group
@@ -290,6 +304,71 @@ class UIWidgets:
         action.triggered.connect(lambda checked=False: slot())
         return action
 
-    def _stub(self, label: str) -> None:
-        """Phase 3b placeholder; Phase 3c replaces with real handlers."""
-        self.message(f"{label} — not yet implemented (Phase 3c).", "info")
+    # ============================================================ import / export
+
+    def _on_import_files(self) -> None:
+        if self.importexport is None:
+            self.message("Import/export service not wired.", "warning")
+            return
+        start_dir = self.state_store.last_export_dir() or ""
+        paths, _ = QFileDialog.getOpenFileNames(
+            self.mainwindow,
+            "Import mode files",
+            start_dir,
+            "Mode files (*.json);;All files (*)",
+        )
+        if not paths:
+            return
+        self.importexport.import_files(paths)
+
+    def _on_import_folder(self) -> None:
+        if self.importexport is None:
+            self.message("Import/export service not wired.", "warning")
+            return
+        start_dir = self.state_store.last_export_dir() or ""
+        path = QFileDialog.getExistingDirectory(
+            self.mainwindow,
+            "Import every mode file in folder",
+            start_dir,
+        )
+        if not path:
+            return
+        self.importexport.import_directory(path)
+
+    def _on_export(self) -> None:
+        if self.importexport is None:
+            self.message("Import/export service not wired.", "warning")
+            return
+        modes = [
+            (mid, meta.get("name", mid))
+            for mid, meta, _ in self.registry.available_modes()
+        ]
+        if not modes:
+            self.message("No modes installed to export.", "info")
+            return
+        ids = self.show_export_selection_dialog(modes)
+        if not ids:
+            return
+        start_dir = self.state_store.last_export_dir() or ""
+        dest_dir = QFileDialog.getExistingDirectory(
+            self.mainwindow,
+            "Export modes to folder",
+            start_dir,
+        )
+        if not dest_dir:
+            return
+        self.importexport.export_modes(ids, dest_dir)
+
+    # ============================================================ dialog adapters
+
+    def show_conflict_dialog(self, mode_id, remaining_conflicts):
+        """Called by ImportExportService; returns ``(action, apply_to_all)``."""
+        return ConflictDialog.prompt(self.mainwindow, mode_id, remaining_conflicts)
+
+    def show_requires_dialog(self, requires, install_status):
+        """Called by ImportExportService; returns ``True`` to proceed."""
+        return RequiresPreviewDialog.prompt(self.mainwindow, requires, install_status)
+
+    def show_export_selection_dialog(self, modes):
+        """Returns the list of chosen mode ids (empty if cancelled)."""
+        return ExportSelectionDialog.prompt(self.mainwindow, modes)
