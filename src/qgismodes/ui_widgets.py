@@ -238,15 +238,19 @@ class UIWidgets:
         """
         if self._toggle_menu is None:
             return
+        # Capture the old menu BEFORE _build_toggle_menu() runs — that
+        # method overwrites self._toggle_menu as a side effect, so reading
+        # self._toggle_menu after the call would point at the new menu and
+        # we'd schedule the menu we just installed for deletion.
+        old_menu = self._toggle_menu
         new_menu = self._build_toggle_menu()
         if self._toggle_button is not None:
             self._toggle_button.setMenu(new_menu)
-        # Replace the old menu (Qt deletes it on next event-loop turn).
-        try:
-            self._toggle_menu.deleteLater()
-        except RuntimeError:
-            pass
-        self._toggle_menu = new_menu
+        if old_menu is not new_menu:
+            try:
+                old_menu.deleteLater()
+            except RuntimeError:
+                pass
 
     # ============================================================ internals
 
