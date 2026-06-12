@@ -1,6 +1,6 @@
 # QGIS Modes
 
-![QGIS Modes Logo](docs/logo/qgismodes.svg)
+<img src="docs/logo/qgismodes.svg" alt="QGIS Modes Logo" width="200">
 
 **Switchable, simplified QGIS interfaces — one per task.**
 
