@@ -1,5 +1,7 @@
 # QGIS Modes
 
+![QGIS Modes Logo](docs/logo/qgismodes.svg)
+
 **Switchable, simplified QGIS interfaces — one per task.**
 
 > ⚠️ **Status: early skeleton.** This repository currently contains the design,
